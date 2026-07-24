@@ -12,9 +12,6 @@ import { usePropertyContext } from "@/lib/PropertyContext";
 import { supabase } from "@/lib/supabase";
 import { Card, Chip } from "@heroui/react";
 import {
-  PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend,
-} from "recharts";
-import {
   Clock, CalendarDays, Megaphone, IndianRupee, AlertTriangle, AlertCircle,
   Info, Building2, DoorOpen, UserPlus, Users, User, Phone, Mail, Home,
   BedDouble, TrendingUp, Receipt, ShieldAlert, FileText, ArrowRight,
@@ -432,45 +429,6 @@ export default function Dashboard() {
   const openComplaints = complaints.filter((c) => c.status !== "Resolved").length;
   const occupancyRate = totalRooms > 0 ? Math.round((occupiedRooms / totalRooms) * 100) : 0;
 
-  const CHART_COLORS = ["#3b82f6", "#f59e0b", "#22c55e", "#8b5cf6", "#ef4444", "#06b6d4", "#ec4899"];
-
-  const occupancyData = [
-    { name: "Occupied", value: occupiedRooms, color: "#22c55e" },
-    { name: "Vacant", value: vacantRooms, color: "#cbd5e1" },
-  ];
-
-  const expenseByCategory = expenses.reduce<Record<string, number>>((acc, e) => {
-    acc[e.category] = (acc[e.category] || 0) + e.amount;
-    return acc;
-  }, {});
-  const expensePieData = Object.entries(expenseByCategory).map(([name, value]) => ({ name, value }));
-
-  const complaintsByStatus = [
-    { name: "Open", value: complaints.filter((c) => c.status === "Open").length, color: "#ef4444" },
-    { name: "In Progress", value: complaints.filter((c) => c.status === "In Progress").length, color: "#f59e0b" },
-    { name: "Resolved", value: complaints.filter((c) => c.status === "Resolved").length, color: "#22c55e" },
-  ].filter((d) => d.value > 0);
-
-  const revenueVsExpenseData = (() => {
-    const months: Record<string, { revenue: number; expenses: number }> = {};
-    const now = new Date();
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const key = d.toLocaleDateString("en-IN", { month: "short" });
-      months[key] = { revenue: 0, expenses: 0 };
-    }
-    expenses.forEach((e) => {
-      const d = new Date(e.date);
-      const key = d.toLocaleDateString("en-IN", { month: "short" });
-      if (months[key]) months[key].expenses += e.amount;
-    });
-    const monthKeys = Object.keys(months);
-    if (monthKeys.length > 0) {
-      const lastMonth = monthKeys[monthKeys.length - 1];
-      months[lastMonth].revenue = monthlyRevenue;
-    }
-    return Object.entries(months).map(([month, data]) => ({ month, ...data }));
-  })();
 
   return (
     <div className="space-y-8">
@@ -564,168 +522,26 @@ export default function Dashboard() {
         </div>
       </section>
 
-      {/* Main Content: Analytics + Activity Sidebar */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Analytics Section */}
-        <div className="lg:col-span-2 space-y-5">
-          <div>
-            <h2 className="text-lg font-bold text-slate-900">Analytics</h2>
-            <p className="text-sm text-slate-500">{property?.name || "My Property"} — Performance overview</p>
-          </div>
-
-          {/* Charts Row 1: Occupancy + Expenses Pie */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div className="bg-white border border-slate-200 rounded-xl p-5">
-              <h3 className="text-sm font-semibold text-slate-800 mb-4">Room Occupancy</h3>
-              {totalRooms > 0 ? (
-                <div className="flex items-center justify-center">
-                  <ResponsiveContainer width="100%" height={180}>
-                    <PieChart>
-                      <Pie
-                        data={occupancyData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={50}
-                        outerRadius={75}
-                        dataKey="value"
-                        stroke="none"
-                      >
-                        {occupancyData.map((entry, i) => (
-                          <Cell key={i} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(value) => [`${value} rooms`]} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              ) : (
-                <div className="h-[180px] flex items-center justify-center text-sm text-slate-400">No rooms added</div>
-              )}
-              <div className="flex justify-center gap-5 mt-2">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-3 h-3 rounded-full bg-emerald-500" />
-                  <span className="text-xs text-slate-600">Occupied ({occupiedRooms})</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="w-3 h-3 rounded-full bg-slate-300" />
-                  <span className="text-xs text-slate-600">Vacant ({vacantRooms})</span>
-                </div>
-              </div>
-              <p className="text-center text-lg font-bold text-slate-900 mt-2">{occupancyRate}% Occupancy</p>
-            </div>
-
-            <div className="bg-white border border-slate-200 rounded-xl p-5">
-              <h3 className="text-sm font-semibold text-slate-800 mb-4">Expenses by Category</h3>
-              {expensePieData.length > 0 ? (
-                <div className="flex items-center justify-center">
-                  <ResponsiveContainer width="100%" height={180}>
-                    <PieChart>
-                      <Pie
-                        data={expensePieData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={50}
-                        outerRadius={75}
-                        dataKey="value"
-                        stroke="none"
-                      >
-                        {expensePieData.map((_, i) => (
-                          <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(value) => [`₹${Number(value).toLocaleString("en-IN")}`]} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              ) : (
-                <div className="h-[180px] flex items-center justify-center text-sm text-slate-400">No expenses recorded</div>
-              )}
-              <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 mt-2">
-                {expensePieData.slice(0, 4).map((d, i) => (
-                  <div key={d.name} className="flex items-center gap-1.5">
-                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
-                    <span className="text-[11px] text-slate-600">{d.name}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Charts Row 2: Revenue vs Expenses Bar */}
-          <div className="bg-white border border-slate-200 rounded-xl p-5">
-            <h3 className="text-sm font-semibold text-slate-800 mb-4">Revenue vs Expenses (Last 6 Months)</h3>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={revenueVsExpenseData} barGap={4}>
-                <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
-                <Tooltip formatter={(value) => [`₹${Number(value).toLocaleString("en-IN")}`]} />
-                <Legend wrapperStyle={{ fontSize: "12px" }} />
-                <Bar dataKey="revenue" name="Revenue" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="expenses" name="Expenses" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Charts Row 3: Complaints by Status */}
-          {complaintsByStatus.length > 0 && (
-            <div className="bg-white border border-slate-200 rounded-xl p-5">
-              <h3 className="text-sm font-semibold text-slate-800 mb-4">Complaints Overview</h3>
-              <div className="flex items-center gap-8">
-                <ResponsiveContainer width="40%" height={140}>
-                  <PieChart>
-                    <Pie
-                      data={complaintsByStatus}
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={55}
-                      dataKey="value"
-                      stroke="none"
-                    >
-                      {complaintsByStatus.map((entry, i) => (
-                        <Cell key={i} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="flex-1 space-y-3">
-                  {complaintsByStatus.map((d) => (
-                    <div key={d.name} className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: d.color }} />
-                        <span className="text-sm text-slate-700">{d.name}</span>
-                      </div>
-                      <span className="text-sm font-bold text-slate-900">{d.value}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Financial Summary Row */}
-          <div className="grid grid-cols-3 gap-4">
-            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
-              <p className="text-[11px] font-medium text-emerald-600 uppercase tracking-wider">Revenue</p>
-              <p className="text-xl font-bold text-emerald-800 mt-1">{`₹${monthlyRevenue.toLocaleString("en-IN")}`}</p>
-            </div>
-            <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
-              <p className="text-[11px] font-medium text-amber-600 uppercase tracking-wider">Expenses</p>
-              <p className="text-xl font-bold text-amber-800 mt-1">{`₹${totalExpenses.toLocaleString("en-IN")}`}</p>
-            </div>
-            <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-xl">
-              <p className="text-[11px] font-medium text-indigo-600 uppercase tracking-wider">Profit</p>
-              <p className="text-xl font-bold text-indigo-800 mt-1">{`₹${profit.toLocaleString("en-IN")}`}</p>
-            </div>
-          </div>
+      {/* Financial Summary */}
+      <section className="grid grid-cols-3 gap-4">
+        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+          <p className="text-[11px] font-medium text-emerald-600 uppercase tracking-wider">Revenue</p>
+          <p className="text-xl font-bold text-emerald-800 mt-1">{`₹${monthlyRevenue.toLocaleString("en-IN")}`}</p>
         </div>
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
+          <p className="text-[11px] font-medium text-amber-600 uppercase tracking-wider">Expenses</p>
+          <p className="text-xl font-bold text-amber-800 mt-1">{`₹${totalExpenses.toLocaleString("en-IN")}`}</p>
+        </div>
+        <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-xl">
+          <p className="text-[11px] font-medium text-indigo-600 uppercase tracking-wider">Profit</p>
+          <p className="text-xl font-bold text-indigo-800 mt-1">{`₹${profit.toLocaleString("en-IN")}`}</p>
+        </div>
+      </section>
 
-        {/* Notices & Activity Sidebar */}
-        <div className="space-y-6">
-          <div>
-            <h2 className="text-lg font-bold text-slate-900">Notices & Activity</h2>
-            <p className="text-sm text-slate-500">Latest updates</p>
-          </div>
+      {/* Notices & Activity */}
+      <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="space-y-4">
+          <h2 className="text-lg font-bold text-slate-900">Notices</h2>
 
           <div className="space-y-3">
             {announcements.length === 0 ? (
@@ -763,7 +579,6 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* Visit Requests */}
           {pendingVisits.length > 0 && (
             <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
               <div className="px-4 py-2.5 border-b border-slate-100 bg-slate-50/50">
@@ -801,12 +616,11 @@ export default function Dashboard() {
               </div>
             </div>
           )}
+        </div>
 
-          {/* Recent Payments */}
+        <div className="space-y-4">
+          <h2 className="text-lg font-bold text-slate-900">Recent Payments</h2>
           <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-            <div className="px-4 py-2.5 border-b border-slate-100 bg-slate-50/50">
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Recent Payments</span>
-            </div>
             <div className="divide-y divide-slate-100">
               {recentPayments.length === 0 ? (
                 <div className="px-4 py-4">
@@ -830,14 +644,14 @@ export default function Dashboard() {
               )}
             </div>
             <Link
-              href="/payments"
+              href="/rent"
               className="block w-full py-2.5 text-center text-xs text-indigo-600 font-semibold hover:bg-indigo-50/50 transition-colors border-t border-slate-100"
             >
               View All Payments
             </Link>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Floating Action Button */}
       <div className="fixed bottom-8 right-8 flex flex-col items-end gap-2 z-50">

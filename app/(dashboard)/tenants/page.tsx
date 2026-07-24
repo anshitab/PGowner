@@ -166,9 +166,27 @@ export default function TenantsPage() {
 
     if (error) {
       setFormError(error.message);
-    } else {
+    } else if (tenantData) {
+      // Assign tenant to an available bed in the room
+      const { data: availableBed } = await supabase
+        .from("beds")
+        .select("id")
+        .eq("room_id", form.roomId)
+        .eq("status", "available")
+        .limit(1)
+        .single();
+
+      if (availableBed) {
+        await supabase.from("beds").update({
+          tenant_id: tenantData.user_id || null,
+          tenant_name: form.name.trim(),
+          status: "occupied",
+          assigned_date: form.joinDate,
+        }).eq("id", availableBed.id);
+      }
+
       // Create first rent collection entry
-      if (tenantData && rent > 0) {
+      if (rent > 0) {
         const now = new Date();
         const dueDate = new Date(now.getFullYear(), now.getMonth(), 1);
         if (dueDate < now) dueDate.setMonth(dueDate.getMonth() + 1);
