@@ -19,7 +19,6 @@ import {
   Home,
   FileText,
   HelpCircle,
-  ArrowLeftRight,
   Activity,
 } from "lucide-react";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
@@ -41,7 +40,6 @@ const allNavItems: NavItem[] = [
   { key: "nav.rent", icon: "IndianRupee", href: "/rent" },
   { key: "nav.visitors", icon: "UserPlus", href: "/visitors", ownerOnly: true },
   { key: "nav.payments", icon: "CreditCard", href: "/payments", ownerOnly: true },
-  { key: "nav.transactions", icon: "ArrowLeftRight", href: "/transactions", ownerOnly: true },
   { key: "nav.complaints", icon: "MessageSquareWarning", href: "/complaints" },
   { key: "nav.activity", icon: "Activity", href: "/activity", ownerOnly: true },
   { key: "nav.myRoom", icon: "Home", href: "/my-room", tenantOnly: true },
@@ -63,7 +61,6 @@ const icons: Record<string, React.ComponentType<{ size?: number }>> = {
   Home,
   FileText,
   HelpCircle,
-  ArrowLeftRight,
   Activity,
 };
 
