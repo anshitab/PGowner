@@ -19,7 +19,6 @@ import {
   Home,
   FileText,
   HelpCircle,
-  Activity,
 } from "lucide-react";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useUserMode } from "@/lib/UserModeContext";
@@ -41,7 +40,6 @@ const allNavItems: NavItem[] = [
   { key: "nav.visitors", icon: "UserPlus", href: "/visitors", ownerOnly: true },
   { key: "nav.payments", icon: "CreditCard", href: "/payments", ownerOnly: true },
   { key: "nav.complaints", icon: "MessageSquareWarning", href: "/complaints" },
-  { key: "nav.activity", icon: "Activity", href: "/activity", ownerOnly: true },
   { key: "nav.myRoom", icon: "Home", href: "/my-room", tenantOnly: true },
   { key: "nav.documents", icon: "FileText", href: "/documents", tenantOnly: true },
 ];
@@ -61,7 +59,6 @@ const icons: Record<string, React.ComponentType<{ size?: number }>> = {
   Home,
   FileText,
   HelpCircle,
-  Activity,
 };
 
 export default function Sidebar() {
