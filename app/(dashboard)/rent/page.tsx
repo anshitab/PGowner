@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, Download, IndianRupee, ExternalLink, CheckCircle2, Clock, AlertTriangle, Send, X } from "lucide-react";
+import { Search, Download, IndianRupee, ExternalLink, CheckCircle2, Clock, AlertTriangle, Send, X, Plus } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Card, Chip, Button } from "@heroui/react";
 import EmptyState from "@/components/EmptyState";
@@ -27,24 +27,28 @@ export default function RentPage() {
   const [sendingTo, setSendingTo] = useState<RentEntry | null>(null);
   const [upiId, setUpiId] = useState("");
   const [sendStatus, setSendStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [recordingFor, setRecordingFor] = useState<RentEntry | null>(null);
+  const [recordMethod, setRecordMethod] = useState<"Cash" | "UPI" | "Bank Transfer">("Cash");
+  const [recordSubmitting, setRecordSubmitting] = useState(false);
   const { t } = useLanguage();
   const { mode } = useUserMode();
   const { propertyId, property } = usePropertyContext();
 
-  useEffect(() => {
+  const fetchRent = async () => {
     if (!propertyId) return;
-    const fetchRent = async () => {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from("rent_collection")
-        .select("*, tenants(name, email, rooms(number))")
-        .eq("property_id", propertyId)
-        .order("due_date", { ascending: false });
-      if (!error && data) {
-        setRentCollection(data as RentEntry[]);
-      }
-      setLoading(false);
-    };
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("rent_collection")
+      .select("*, tenants(name, email, rooms(number))")
+      .eq("property_id", propertyId)
+      .order("due_date", { ascending: false });
+    if (!error && data) {
+      setRentCollection(data as RentEntry[]);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
     fetchRent();
   }, [propertyId]);
 
@@ -204,6 +208,31 @@ export default function RentPage() {
     }
   };
 
+  const handleRecordPayment = async () => {
+    if (!recordingFor || !propertyId) return;
+    setRecordSubmitting(true);
+
+    const today = new Date().toISOString().split("T")[0];
+
+    await supabase
+      .from("rent_collection")
+      .update({ status: "Paid", paid_date: today, method: recordMethod })
+      .eq("id", recordingFor.id);
+
+    await supabase.from("payments").insert({
+      property_id: propertyId,
+      tenant_id: recordingFor.tenant_id,
+      amount: recordingFor.amount,
+      method: recordMethod,
+      verified: false,
+      date: today,
+    });
+
+    setRecordSubmitting(false);
+    setRecordingFor(null);
+    await fetchRent();
+  };
+
   // Owner view — full rent management table
   const filtered = rentCollection.filter(
     (r) => filter === "All" || r.status === filter
@@ -339,14 +368,25 @@ export default function RentPage() {
                         </Chip>
                       </td>
                       <td className="px-5 py-3.5">
-                        {entry.status !== "Paid" && entry.tenants?.email && (
-                          <button
-                            onClick={() => { setSendingTo(entry); setSendStatus("idle"); setUpiId(""); }}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
-                          >
-                            <Send size={12} />
-                            Send Link
-                          </button>
+                        {entry.status !== "Paid" && (
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => { setRecordingFor(entry); setRecordMethod("Cash"); }}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors"
+                            >
+                              <Plus size={12} />
+                              Record
+                            </button>
+                            {entry.tenants?.email && (
+                              <button
+                                onClick={() => { setSendingTo(entry); setSendStatus("idle"); setUpiId(""); }}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
+                              >
+                                <Send size={12} />
+                                Send Link
+                              </button>
+                            )}
+                          </div>
                         )}
                       </td>
                     </tr>
@@ -356,6 +396,86 @@ export default function RentPage() {
             </div>
           </Card.Content>
         </Card>
+      )}
+
+      {/* Record Payment Modal */}
+      {recordingFor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <h3 className="text-base font-semibold text-slate-900">Record Payment</h3>
+              <button onClick={() => setRecordingFor(null)} className="p-1 hover:bg-slate-100 rounded-lg transition-colors">
+                <X size={18} className="text-slate-500" />
+              </button>
+            </div>
+
+            <div className="px-6 py-5 space-y-4">
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-1.5">
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-500">Tenant</span>
+                  <span className="font-medium text-slate-800">{recordingFor.tenants?.name}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-500">Room</span>
+                  <span className="font-medium text-slate-800">{recordingFor.tenants?.rooms?.number || "—"}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-500">Amount</span>
+                  <span className="font-bold text-slate-900">₹{recordingFor.amount.toLocaleString("en-IN")}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-500">Due Date</span>
+                  <span className="font-medium text-slate-800">{new Date(recordingFor.due_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Payment Method</label>
+                <div className="flex gap-2">
+                  {(["Cash", "UPI", "Bank Transfer"] as const).map((m) => (
+                    <button
+                      key={m}
+                      onClick={() => setRecordMethod(m)}
+                      className={`flex-1 px-3 py-2.5 text-sm font-medium rounded-lg border transition-all ${
+                        recordMethod === m
+                          ? "bg-indigo-50 border-indigo-300 text-indigo-700"
+                          : "bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300"
+                      }`}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-slate-100 flex gap-3">
+              <button
+                onClick={() => setRecordingFor(null)}
+                className="flex-1 px-4 py-2.5 text-sm font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRecordPayment}
+                disabled={recordSubmitting}
+                className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+              >
+                {recordSubmitting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 size={14} />
+                    Mark as Paid
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Send Payment Link Modal */}
