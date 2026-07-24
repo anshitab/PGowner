@@ -1,0 +1,336 @@
+"use client";
+
+import { User, Bell, Shield, CreditCard, ScrollText, Plus, Trash2, GripVertical } from "lucide-react";
+import { useState } from "react";
+import { Card, Button, Switch, Avatar, AvatarFallback, Chip } from "@heroui/react";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
+import { useUserMode } from "@/lib/UserModeContext";
+import { useAuth } from "@/lib/AuthContext";
+import { useSettings } from "@/lib/SettingsContext";
+
+const allTabs = [
+  { id: "profile", key: "settings.profile", icon: User },
+  { id: "notifications", key: "settings.notifications", icon: Bell },
+  { id: "security", key: "settings.security", icon: Shield },
+  { id: "pgRules", key: "PG Rules", icon: ScrollText, ownerOnly: true },
+  { id: "billing", key: "settings.billing", icon: CreditCard, ownerOnly: true },
+];
+
+export default function SettingsPage() {
+  const [activeTab, setActiveTab] = useState("profile");
+  const { t } = useLanguage();
+  const { mode } = useUserMode();
+  const { user } = useAuth();
+  const { settings, updateSettings } = useSettings();
+  const [newRule, setNewRule] = useState("");
+  const [saved, setSaved] = useState(false);
+
+  const tabs = mode === "owner" ? allTabs : allTabs.filter((tab) => !tab.ownerOnly);
+
+  const isOwner = mode === "owner";
+  const userName = user?.name || "User";
+  const userEmail = user?.email || "";
+  const userPhone = "";
+  const userRole = isOwner ? t("mode.propertyManager") : t("mode.tenant");
+  const userInitials = userName.split(" ").map((n) => n[0]).join("");
+
+  const showSaved = () => {
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  const addRule = () => {
+    if (!newRule.trim()) return;
+    updateSettings({ pgRules: [...settings.pgRules, newRule.trim()] });
+    setNewRule("");
+    showSaved();
+  };
+
+  const removeRule = (index: number) => {
+    updateSettings({ pgRules: settings.pgRules.filter((_, i) => i !== index) });
+    showSaved();
+  };
+
+  return (
+    <div className="space-y-8">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-slate-900">{t("settings.title")}</h2>
+          <p className="text-sm text-slate-500 mt-1">{t("settings.subtitle")}</p>
+        </div>
+        {saved && (
+          <span className="text-xs font-medium text-emerald-600 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg animate-in fade-in">
+            Settings saved
+          </span>
+        )}
+      </div>
+
+      <div className="flex gap-6">
+        <div className="w-56 space-y-0.5">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                  activeTab === tab.id
+                    ? "bg-blue-50 text-blue-700 shadow-sm"
+                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                }`}
+              >
+                <Icon size={16} />
+                {tab.key.startsWith("settings.") ? t(tab.key) : tab.key}
+              </button>
+            );
+          })}
+        </div>
+
+        <Card className="flex-1">
+          <Card.Content className="p-6">
+            {activeTab === "profile" && (
+              <div className="space-y-6">
+                <h3 className="text-base font-semibold text-slate-900">{t("settings.profileSettings")}</h3>
+                <div className="flex items-center gap-4 pb-6 border-b border-slate-100">
+                  <Avatar size="lg">
+                    <AvatarFallback>{userInitials}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">{userName}</p>
+                    <p className="text-xs text-slate-500">ID: 4821</p>
+                    <button className="text-xs text-blue-600 font-medium mt-1 hover:underline">{t("settings.changePhoto")}</button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1.5">{t("settings.fullName")}</label>
+                    <input type="text" defaultValue={userName} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1.5">{t("settings.email")}</label>
+                    <input type="email" defaultValue={userEmail} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1.5">{t("settings.phone")}</label>
+                    <input type="tel" defaultValue={userPhone} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1.5">{t("settings.role")}</label>
+                    <input type="text" defaultValue={userRole} disabled className="w-full px-3 py-2.5 bg-slate-100 border border-slate-200 rounded-lg text-sm text-slate-500" />
+                  </div>
+                </div>
+                <Button variant="primary" size="sm" onClick={showSaved}>{t("common.save")}</Button>
+              </div>
+            )}
+
+            {activeTab === "notifications" && (
+              <div className="space-y-6">
+                <h3 className="text-base font-semibold text-slate-900">{t("settings.notificationPreferences")}</h3>
+                <div className="space-y-1">
+                  {([
+                    { key: "paymentReceived" as const, label: t("settings.paymentReceived"), desc: t("settings.paymentReceivedDesc") },
+                    { key: "rentOverdue" as const, label: t("settings.rentOverdue"), desc: t("settings.rentOverdueDesc") },
+                    { key: "newComplaint" as const, label: t("settings.newComplaint"), desc: t("settings.newComplaintDesc") },
+                    { key: "visitorCheckIn" as const, label: t("settings.visitorCheckIn"), desc: t("settings.visitorCheckInDesc") },
+                    { key: "monthlyReports" as const, label: t("settings.monthlyReports"), desc: t("settings.monthlyReportsDesc") },
+                  ]).map((item) => (
+                    <div key={item.key} className="flex items-center justify-between py-4 border-b border-slate-50 last:border-0">
+                      <div>
+                        <p className="text-sm font-medium text-slate-800">{item.label}</p>
+                        <p className="text-xs text-slate-500 mt-0.5">{item.desc}</p>
+                      </div>
+                      <Switch
+                        isSelected={settings.notifications[item.key]}
+                        onChange={(checked) => {
+                          updateSettings({
+                            notifications: { ...settings.notifications, [item.key]: checked },
+                          });
+                          showSaved();
+                        }}
+                        size="sm"
+                      >
+                        <Switch.Control>
+                          <Switch.Thumb />
+                        </Switch.Control>
+                      </Switch>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {activeTab === "security" && (
+              <div className="space-y-6">
+                <h3 className="text-base font-semibold text-slate-900">{t("settings.securitySettings")}</h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1.5">{t("settings.currentPassword")}</label>
+                    <input type="password" placeholder={t("settings.currentPassword")} className="w-full max-w-sm px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1.5">{t("settings.newPassword")}</label>
+                    <input type="password" placeholder={t("settings.newPassword")} className="w-full max-w-sm px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all" />
+                  </div>
+                  <Button variant="primary" size="sm">{t("settings.updatePassword")}</Button>
+                </div>
+                <div className="pt-4 border-t border-slate-100">
+                  <h4 className="text-sm font-medium text-slate-800 mb-2">{t("settings.twoFactor")}</h4>
+                  <p className="text-xs text-slate-500 mb-3">{t("settings.twoFactorDesc")}</p>
+                  <Button variant="outline" size="sm">{t("settings.enable2FA")}</Button>
+                </div>
+              </div>
+            )}
+
+            {activeTab === "pgRules" && (
+              <div className="space-y-6">
+                <h3 className="text-base font-semibold text-slate-900">PG Rules & Configuration</h3>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1.5">Rent Due Day</label>
+                    <select
+                      value={settings.rentDueDay}
+                      onChange={(e) => { updateSettings({ rentDueDay: Number(e.target.value) }); showSaved(); }}
+                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    >
+                      {Array.from({ length: 28 }, (_, i) => i + 1).map((d) => (
+                        <option key={d} value={d}>{d}{d === 1 ? "st" : d === 2 ? "nd" : d === 3 ? "rd" : "th"} of month</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1.5">Late Fee Grace Period</label>
+                    <select
+                      value={settings.lateFeeGraceDays}
+                      onChange={(e) => { updateSettings({ lateFeeGraceDays: Number(e.target.value) }); showSaved(); }}
+                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    >
+                      {[3, 5, 7, 10, 15].map((d) => (
+                        <option key={d} value={d}>{d} days</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1.5">Late Fee Amount (₹)</label>
+                    <input
+                      type="number"
+                      value={settings.lateFeeAmount}
+                      onChange={(e) => { updateSettings({ lateFeeAmount: Number(e.target.value) }); showSaved(); }}
+                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1.5">Notice Period (Days)</label>
+                    <input
+                      type="number"
+                      value={settings.noticePeriodDays}
+                      onChange={(e) => { updateSettings({ noticePeriodDays: Number(e.target.value) }); showSaved(); }}
+                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1.5">Visitor Hours Start</label>
+                    <input
+                      type="time"
+                      value={settings.visitorHours.start}
+                      onChange={(e) => { updateSettings({ visitorHours: { ...settings.visitorHours, start: e.target.value } }); showSaved(); }}
+                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1.5">Visitor Hours End</label>
+                    <input
+                      type="time"
+                      value={settings.visitorHours.end}
+                      onChange={(e) => { updateSettings({ visitorHours: { ...settings.visitorHours, end: e.target.value } }); showSaved(); }}
+                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1.5">Security Deposit (x Monthly Rent)</label>
+                    <select
+                      value={settings.depositMultiplier}
+                      onChange={(e) => { updateSettings({ depositMultiplier: Number(e.target.value) }); showSaved(); }}
+                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    >
+                      {[1, 2, 3].map((m) => (
+                        <option key={m} value={m}>{m} month{m > 1 ? "s" : ""}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1.5">Cleaning Fee on Checkout (₹)</label>
+                    <input
+                      type="number"
+                      value={settings.checkoutDeductions.cleaningFee}
+                      onChange={(e) => { updateSettings({ checkoutDeductions: { ...settings.checkoutDeductions, cleaningFee: Number(e.target.value) } }); showSaved(); }}
+                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-slate-100">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-sm font-semibold text-slate-800">PG Rules</h4>
+                    <span className="text-[11px] text-slate-400">{settings.pgRules.length} rules</span>
+                  </div>
+                  <div className="space-y-2 mb-4">
+                    {settings.pgRules.map((rule, i) => (
+                      <div key={i} className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg group">
+                        <GripVertical size={14} className="text-slate-300" />
+                        <span className="text-sm text-slate-700 flex-1">{rule}</span>
+                        <button
+                          onClick={() => removeRule(i)}
+                          className="p-1 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newRule}
+                      onChange={(e) => setNewRule(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") addRule(); }}
+                      placeholder="Add a new rule..."
+                      className="flex-1 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    />
+                    <Button variant="primary" size="sm" onClick={addRule}>
+                      <Plus size={14} />
+                      Add
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === "billing" && (
+              <div className="space-y-6">
+                <h3 className="text-base font-semibold text-slate-900">{t("settings.billingPlan")}</h3>
+                <div className="p-5 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="text-sm font-bold text-blue-900">{t("settings.proPlan")}</p>
+                        <Chip size="sm" variant="soft" color="accent">{t("status.active")}</Chip>
+                      </div>
+                      <p className="text-xs text-blue-600">{t("settings.proPlanDesc")}</p>
+                    </div>
+                    <span className="text-2xl font-bold text-blue-900">
+                      ₹2,999<span className="text-sm font-normal text-blue-600">/mo</span>
+                    </span>
+                  </div>
+                </div>
+                <p className="text-xs text-slate-500">{t("settings.nextBilling")}</p>
+                <Button variant="outline" size="sm">{t("settings.manageSubscription")}</Button>
+              </div>
+            )}
+
+          </Card.Content>
+        </Card>
+      </div>
+    </div>
+  );
+}

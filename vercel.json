@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/rent-reminders?secret=promanage-cron-secret-2026",
+      "schedule": "30 3 * * *"
+    }
+  ]
+}
