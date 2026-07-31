@@ -241,9 +241,6 @@ export default function Dashboard() {
                 <Receipt size={15} className="text-emerald-500" />
                 Payment History
               </Card.Title>
-              <Link href="/rent" className="text-xs text-emerald-600 font-medium hover:text-emerald-700">
-                {t("common.viewAll")}
-              </Link>
             </div>
           </Card.Header>
           <Card.Content className="p-5">

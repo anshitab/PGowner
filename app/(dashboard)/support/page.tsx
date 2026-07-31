@@ -89,16 +89,6 @@ export default function SupportPage() {
                     <p className="text-[11px] text-red-600">Log a maintenance complaint</p>
                   </div>
                 </Link>
-                <Link
-                  href="/visitors"
-                  className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition-colors"
-                >
-                  <MessageCircle size={18} className="text-blue-500" />
-                  <div>
-                    <p className="text-sm font-medium text-blue-800">Request Visit</p>
-                    <p className="text-[11px] text-blue-600">Register a visitor in advance</p>
-                  </div>
-                </Link>
               </div>
             </Card.Content>
           </Card>
