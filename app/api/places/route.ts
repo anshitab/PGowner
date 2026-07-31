@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+const GOOGLE_API_KEY = process.env.GOOGLE_PLACES_API_KEY || "";
 const NOMINATIM_BASE = "https://nominatim.openstreetmap.org";
 
 export async function GET(request: Request) {
@@ -10,6 +11,28 @@ export async function GET(request: Request) {
     return NextResponse.json({ predictions: [] });
   }
 
+  // Use Google Places if API key is configured
+  if (GOOGLE_API_KEY) {
+    try {
+      const res = await fetch(
+        `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&components=country:in&types=establishment&key=${GOOGLE_API_KEY}`
+      );
+      const data = await res.json();
+
+      if (data.predictions) {
+        const predictions = data.predictions.map((p: { place_id: string; description: string; structured_formatting?: { main_text?: string } }) => ({
+          place_id: p.place_id,
+          description: p.description,
+          name: p.structured_formatting?.main_text || p.description.split(",")[0],
+        }));
+        return NextResponse.json({ predictions });
+      }
+    } catch {
+      // Fall through to Nominatim
+    }
+  }
+
+  // Fallback: Nominatim (OpenStreetMap)
   try {
     const res = await fetch(
       `${NOMINATIM_BASE}/search?q=${encodeURIComponent(query)}&countrycodes=in&format=json&addressdetails=1&limit=6`,
@@ -39,7 +62,37 @@ export async function POST(request: Request) {
     return NextResponse.json({ details: null });
   }
 
-  // If prediction data was passed directly, use it
+  // Use Google Place Details if API key is configured and placeId looks like a Google one
+  if (GOOGLE_API_KEY && placeId && placeId.startsWith("Ch")) {
+    try {
+      const res = await fetch(
+        `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=name,formatted_address,geometry,photos&key=${GOOGLE_API_KEY}`
+      );
+      const data = await res.json();
+
+      if (data.result) {
+        const result = data.result;
+        const photos = (result.photos || []).slice(0, 4).map(
+          (p: { photo_reference: string }) =>
+            `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${p.photo_reference}&key=${GOOGLE_API_KEY}`
+        );
+
+        return NextResponse.json({
+          details: {
+            name: result.name || "",
+            address: result.formatted_address || "",
+            lat: result.geometry?.location?.lat || null,
+            lng: result.geometry?.location?.lng || null,
+            photos,
+          },
+        });
+      }
+    } catch {
+      // Fall through to Nominatim-based details
+    }
+  }
+
+  // Nominatim-based details
   if (name || description) {
     return NextResponse.json({
       details: {
@@ -52,7 +105,6 @@ export async function POST(request: Request) {
     });
   }
 
-  // Fallback: lookup by Nominatim place_id
   try {
     const res = await fetch(
       `${NOMINATIM_BASE}/details?place_id=${placeId}&format=json`,

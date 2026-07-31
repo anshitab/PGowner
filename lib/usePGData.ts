@@ -4,6 +4,12 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "./supabase";
 import { usePropertyContext } from "./PropertyContext";
 
+export interface RoomTenant {
+  id: string;
+  name: string;
+  bedLabel: string;
+}
+
 export interface RoomData {
   id: string;
   number: string;
@@ -13,6 +19,7 @@ export interface RoomData {
   status: string;
   amenities: string[];
   tenants: string[];
+  tenantDetails: RoomTenant[];
 }
 
 export interface BedData {
@@ -37,19 +44,30 @@ export function usePGData() {
       return;
     }
 
-    const [roomsRes, bedsRes] = await Promise.all([
+    const [roomsRes, bedsRes, tenantsRes] = await Promise.all([
       supabase.from("rooms").select("*").eq("property_id", propertyId).order("floor").order("number"),
       supabase.from("beds").select("*").eq("property_id", propertyId),
+      supabase.from("tenants").select("id, name, room_id").eq("property_id", propertyId).eq("status", "Active"),
     ]);
 
     if (roomsRes.data) {
       const bedsData = bedsRes.data || [];
+      const tenantsData = tenantsRes.data || [];
+      const tenantsByName = new Map(tenantsData.map((t) => [t.name, t]));
+
       setRooms(
         roomsRes.data.map((r) => {
           const roomBeds = bedsData.filter((b) => b.room_id === r.id);
-          const occupiedTenants = roomBeds
-            .filter((b) => b.status === "occupied" && b.tenant_name)
-            .map((b) => b.tenant_name!);
+          const occupiedBeds = roomBeds.filter((b) => b.status === "occupied" && b.tenant_name);
+          const occupiedTenants = occupiedBeds.map((b) => b.tenant_name!);
+          const tenantDetails: RoomTenant[] = occupiedBeds.map((b) => {
+            const tenant = tenantsByName.get(b.tenant_name!);
+            return {
+              id: tenant?.id || "",
+              name: b.tenant_name!,
+              bedLabel: b.label,
+            };
+          });
           return {
             id: r.id,
             number: r.number,
@@ -59,6 +77,7 @@ export function usePGData() {
             status: occupiedTenants.length > 0 ? "Occupied" : "Vacant",
             amenities: r.amenities || [],
             tenants: occupiedTenants,
+            tenantDetails,
           };
         })
       );
@@ -84,6 +103,16 @@ export function usePGData() {
       fetchData();
     }
   }, [propertyLoading, fetchData]);
+
+  useEffect(() => {
+    const handler = () => { fetchData(); };
+    window.addEventListener("rooms-updated", handler);
+    window.addEventListener("beds-updated", handler);
+    return () => {
+      window.removeEventListener("rooms-updated", handler);
+      window.removeEventListener("beds-updated", handler);
+    };
+  }, [fetchData]);
 
   const amenities: Record<string, string[]> = {};
   rooms.forEach((r) => {

@@ -2,18 +2,15 @@
 
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useUserMode } from "@/lib/UserModeContext";
-import { useVisitRequests } from "@/lib/VisitRequestContext";
-import { useAnnouncements } from "@/lib/AnnouncementContext";
 import { useAuth } from "@/lib/AuthContext";
 import { usePGData } from "@/lib/usePGData";
 import { useComplaints } from "@/lib/ComplaintContext";
-import { useExpenses } from "@/lib/ExpenseContext";
 import { usePropertyContext } from "@/lib/PropertyContext";
 import { supabase } from "@/lib/supabase";
 import { Card, Chip } from "@heroui/react";
 import {
-  Clock, CalendarDays, Megaphone, IndianRupee, AlertTriangle, AlertCircle,
-  Info, Building2, DoorOpen, UserPlus, Users, User, Phone, Mail, Home,
+  Clock, CalendarDays, IndianRupee, AlertTriangle, AlertCircle,
+  Info, Building2, DoorOpen, Users, User, Phone, Mail, Home,
   BedDouble, TrendingUp, Receipt, ShieldAlert, FileText, ArrowRight,
 } from "lucide-react";
 import Link from "next/link";
@@ -23,14 +20,10 @@ export default function Dashboard() {
   const { t } = useLanguage();
   const { mode } = useUserMode();
   const { user } = useAuth();
-  const { requests, updateStatus } = useVisitRequests();
-  const { announcements } = useAnnouncements();
   const pgData = usePGData();
   const rooms = pgData.rooms;
   const { complaints } = useComplaints();
-  const { expenses } = useExpenses();
   const { property } = usePropertyContext();
-  const pendingVisits = requests.filter((r) => r.status === "pending");
   const [fabOpen, setFabOpen] = useState(false);
   const [recentPayments, setRecentPayments] = useState<Array<{ id: string; tenant: string; room: string; amount: number }>>([]);
   const [tenantData, setTenantData] = useState<{ name?: string; phone?: string; email?: string; room?: string; rent?: number; joinDate?: string; property?: string } | null>(null);
@@ -128,13 +121,6 @@ export default function Dashboard() {
   // ─── TENANT DASHBOARD ───────────────────────────────────────────────
   if (mode === "tenant") {
     const myComplaints = complaints.filter((c) => c.tenant === user?.name && c.status !== "Resolved");
-    const recentAnnouncements = announcements.slice(0, 3);
-
-    const priorityIcon = {
-      urgent: <AlertTriangle size={14} className="text-red-500" />,
-      important: <AlertCircle size={14} className="text-amber-500" />,
-      normal: <Info size={14} className="text-blue-500" />,
-    };
 
     return (
       <div className="space-y-6">
@@ -149,8 +135,8 @@ export default function Dashboard() {
           <Card>
             <Card.Content className="p-5">
               <div className="flex items-center gap-3 mb-4">
-                <div className="p-2.5 bg-blue-50 rounded-xl">
-                  <Home size={18} className="text-blue-600" />
+                <div className="p-2.5 bg-emerald-50 rounded-xl">
+                  <Home size={18} className="text-emerald-600" />
                 </div>
                 <div>
                   <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Current Room</p>
@@ -158,11 +144,11 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div className="p-2.5 bg-slate-50 rounded-lg">
+                <div className="p-2.5 bg-emerald-50/50 rounded-lg">
                   <p className="text-[10px] text-slate-500 uppercase">Property</p>
                   <p className="text-sm font-semibold text-slate-800">{tenantData?.property || "—"}</p>
                 </div>
-                <div className="p-2.5 bg-slate-50 rounded-lg">
+                <div className="p-2.5 bg-emerald-50/50 rounded-lg">
                   <p className="text-[10px] text-slate-500 uppercase">Since</p>
                   <p className="text-sm font-semibold text-slate-800">
                     {tenantData?.joinDate ? new Date(tenantData.joinDate).toLocaleDateString("en-IN", { month: "short", year: "numeric" }) : "—"}
@@ -173,7 +159,7 @@ export default function Dashboard() {
           </Card>
 
           <Card className="overflow-hidden">
-            <div className="p-5 bg-gradient-to-br from-blue-600 to-indigo-700 text-white">
+            <div className="p-5 bg-gradient-to-br from-emerald-600 to-teal-700 text-white">
               <p className="text-sm opacity-80 font-medium">Monthly Rent</p>
               <p className="text-3xl font-bold mt-1">
                 {tenantData?.rent ? `₹${tenantData.rent.toLocaleString("en-IN")}` : "—"}
@@ -185,10 +171,10 @@ export default function Dashboard() {
             <Card.Content className="p-4">
               <Link
                 href="/rent"
-                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
+                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
               >
                 <IndianRupee size={15} />
-                Pay Now via Razorpay
+                Pay Rent
                 <ArrowRight size={14} className="opacity-70" />
               </Link>
             </Card.Content>
@@ -198,7 +184,7 @@ export default function Dashboard() {
         <Card>
           <Card.Header className="px-5 pt-5 pb-0">
             <Card.Title className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-              <User size={15} className="text-blue-500" />
+              <User size={15} className="text-emerald-500" />
               My Profile
             </Card.Title>
           </Card.Header>
@@ -259,7 +245,7 @@ export default function Dashboard() {
                 <Receipt size={15} className="text-emerald-500" />
                 Payment History
               </Card.Title>
-              <Link href="/rent" className="text-xs text-blue-600 font-medium hover:text-blue-700">
+              <Link href="/rent" className="text-xs text-emerald-600 font-medium hover:text-emerald-700">
                 {t("common.viewAll")}
               </Link>
             </div>
@@ -285,49 +271,14 @@ export default function Dashboard() {
           </Card.Content>
         </Card>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          <Card>
-            <Card.Header className="px-5 pt-5 pb-0">
-              <div className="flex items-center justify-between w-full">
-                <Card.Title className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-                  <Megaphone size={15} className="text-purple-500" />
-                  Notices
-                </Card.Title>
-                <Link href="/announcements" className="text-xs text-blue-600 font-medium hover:text-blue-700">
-                  {t("common.viewAll")}
-                </Link>
-              </div>
-            </Card.Header>
-            <Card.Content className="p-5">
-              {recentAnnouncements.length > 0 ? (
-                <div className="space-y-3">
-                  {recentAnnouncements.map((a) => (
-                    <div key={a.id} className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg">
-                      <div className="mt-0.5">{priorityIcon[a.priority as keyof typeof priorityIcon] || priorityIcon.normal}</div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-slate-800 truncate">{a.title}</p>
-                        <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{a.message}</p>
-                        <p className="text-[11px] text-slate-400 mt-1">
-                          {new Date(a.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-slate-500 text-center py-4">No notices</p>
-              )}
-            </Card.Content>
-          </Card>
-
-          <Card>
+        <Card>
             <Card.Header className="px-5 pt-5 pb-0">
               <div className="flex items-center justify-between w-full">
                 <Card.Title className="text-sm font-semibold text-slate-800 flex items-center gap-2">
                   <AlertCircle size={15} className="text-amber-500" />
                   My Complaints
                 </Card.Title>
-                <Link href="/complaints" className="text-xs text-blue-600 font-medium hover:text-blue-700">
+                <Link href="/complaints" className="text-xs text-emerald-600 font-medium hover:text-emerald-700">
                   Raise New
                 </Link>
               </div>
@@ -352,7 +303,6 @@ export default function Dashboard() {
               )}
             </Card.Content>
           </Card>
-        </div>
 
         <Card>
           <Card.Header className="px-5 pt-5 pb-0">
@@ -381,7 +331,7 @@ export default function Dashboard() {
         <Card>
           <Card.Header className="px-5 pt-5 pb-0">
             <Card.Title className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-              <Phone size={15} className="text-indigo-500" />
+              <Phone size={15} className="text-emerald-500" />
               Support & Help
             </Card.Title>
           </Card.Header>
@@ -402,12 +352,12 @@ export default function Dashboard() {
               <div className="space-y-3">
                 <Link
                   href="/support"
-                  className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                  className="flex items-center gap-3 p-3 bg-emerald-50 rounded-lg hover:bg-emerald-100 transition-colors"
                 >
-                  <Info size={15} className="text-blue-500" />
+                  <Info size={15} className="text-emerald-500" />
                   <div>
-                    <p className="text-[10px] text-blue-600 uppercase font-medium">Help Center</p>
-                    <p className="text-sm font-medium text-blue-800">FAQs & emergency contacts</p>
+                    <p className="text-[10px] text-emerald-600 uppercase font-medium">Help Center</p>
+                    <p className="text-sm font-medium text-emerald-800">FAQs & emergency contacts</p>
                   </div>
                 </Link>
               </div>
@@ -424,8 +374,6 @@ export default function Dashboard() {
   const vacantRooms = rooms.filter((r) => r.status === "Vacant").length;
   const activeTenants = rooms.reduce((sum, r) => sum + r.tenants.length, 0);
   const monthlyRevenue = rooms.filter((r) => r.status === "Occupied").reduce((sum, r) => sum + r.rent, 0);
-  const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
-  const profit = monthlyRevenue - totalExpenses;
   const openComplaints = complaints.filter((c) => c.status !== "Resolved").length;
   const occupancyRate = totalRooms > 0 ? Math.round((occupiedRooms / totalRooms) * 100) : 0;
 
@@ -491,15 +439,6 @@ export default function Dashboard() {
           <p className="text-3xl font-bold text-slate-900 mt-1">{`₹${monthlyRevenue.toLocaleString("en-IN")}`}</p>
         </div>
 
-        <div className="p-5 bg-white border border-slate-200 rounded-xl hover:border-red-200 transition-all card-hover">
-          <div className="flex justify-between items-start mb-3">
-            <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center">
-              <Clock size={20} className="text-red-600" />
-            </div>
-          </div>
-          <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Total Expenses</p>
-          <p className="text-3xl font-bold text-red-600 mt-1">{`₹${totalExpenses.toLocaleString("en-IN")}`}</p>
-        </div>
 
         <div className="p-5 bg-white border border-slate-200 rounded-xl hover:border-amber-200 transition-all card-hover">
           <div className="flex justify-between items-start mb-3">
@@ -511,113 +450,11 @@ export default function Dashboard() {
           <p className="text-3xl font-bold text-slate-900 mt-1">{String(openComplaints).padStart(2, "0")}</p>
         </div>
 
-        <div className="p-5 bg-white border border-slate-200 rounded-xl hover:border-purple-200 transition-all card-hover">
-          <div className="flex justify-between items-start mb-3">
-            <div className="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center">
-              <Megaphone size={20} className="text-purple-600" />
-            </div>
-          </div>
-          <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Active Notices</p>
-          <p className="text-3xl font-bold text-slate-900 mt-1">{String(announcements.length).padStart(2, "0")}</p>
-        </div>
       </section>
 
-      {/* Financial Summary */}
-      <section className="grid grid-cols-3 gap-4">
-        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
-          <p className="text-[11px] font-medium text-emerald-600 uppercase tracking-wider">Revenue</p>
-          <p className="text-xl font-bold text-emerald-800 mt-1">{`₹${monthlyRevenue.toLocaleString("en-IN")}`}</p>
-        </div>
-        <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
-          <p className="text-[11px] font-medium text-amber-600 uppercase tracking-wider">Expenses</p>
-          <p className="text-xl font-bold text-amber-800 mt-1">{`₹${totalExpenses.toLocaleString("en-IN")}`}</p>
-        </div>
-        <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-xl">
-          <p className="text-[11px] font-medium text-indigo-600 uppercase tracking-wider">Profit</p>
-          <p className="text-xl font-bold text-indigo-800 mt-1">{`₹${profit.toLocaleString("en-IN")}`}</p>
-        </div>
-      </section>
 
-      {/* Notices & Activity */}
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="space-y-4">
-          <h2 className="text-lg font-bold text-slate-900">Notices</h2>
-
-          <div className="space-y-3">
-            {announcements.length === 0 ? (
-              <p className="text-sm text-slate-500 text-center py-4">No notices yet</p>
-            ) : (
-              announcements.slice(0, 3).map((notice) => {
-                const config = notice.priority === "urgent"
-                  ? { border: "border-l-red-500", bg: "bg-red-50/50", icon: <AlertTriangle size={16} className="text-red-500" />, label: "URGENT", labelColor: "text-red-600" }
-                  : notice.priority === "important"
-                  ? { border: "border-l-indigo-500", bg: "bg-indigo-50/50", icon: <Info size={16} className="text-indigo-500" />, label: "IMPORTANT", labelColor: "text-indigo-600" }
-                  : { border: "border-l-emerald-500", bg: "bg-emerald-50/50", icon: <Megaphone size={16} className="text-emerald-500" />, label: "GENERAL", labelColor: "text-emerald-600" };
-
-                return (
-                  <div key={notice.id} className={`${config.bg} border-l-4 ${config.border} p-4 rounded-r-xl`}>
-                    <div className="flex gap-3">
-                      <div className="w-8 h-8 rounded-full bg-white/80 flex-shrink-0 flex items-center justify-center">
-                        {config.icon}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex justify-between items-start mb-0.5">
-                          <span className={`text-[10px] font-bold ${config.labelColor} uppercase tracking-wider`}>
-                            {config.label}
-                          </span>
-                          <span className="text-[10px] text-slate-400">
-                            {new Date(notice.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
-                          </span>
-                        </div>
-                        <p className="text-sm font-semibold text-slate-800 leading-tight">{notice.title}</p>
-                        <p className="text-[11px] text-slate-500 mt-1 line-clamp-2 leading-relaxed">{notice.message}</p>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-
-          {pendingVisits.length > 0 && (
-            <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-              <div className="px-4 py-2.5 border-b border-slate-100 bg-slate-50/50">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Visit Requests</span>
-                  <Chip size="sm" variant="soft" color="warning">{pendingVisits.length}</Chip>
-                </div>
-              </div>
-              <div className="divide-y divide-slate-100">
-                {pendingVisits.slice(0, 3).map((req) => (
-                  <div key={req.id} className="px-4 py-3">
-                    <div className="flex items-center justify-between mb-1">
-                      <p className="text-sm font-medium text-slate-800">{req.name}</p>
-                      <span className="text-[10px] text-slate-400">
-                        {new Date(req.date).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-slate-500 mb-2">{req.purpose}</p>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => updateStatus(req.id, "approved")}
-                        className="px-2.5 py-1 text-[11px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md hover:bg-emerald-100 transition-colors"
-                      >
-                        Approve
-                      </button>
-                      <button
-                        onClick={() => updateStatus(req.id, "declined")}
-                        className="px-2.5 py-1 text-[11px] font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 transition-colors"
-                      >
-                        Decline
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
+      {/* Recent Payments */}
+      <section>
         <div className="space-y-4">
           <h2 className="text-lg font-bold text-slate-900">Recent Payments</h2>
           <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
@@ -661,8 +498,8 @@ export default function Dashboard() {
               href="/tenants"
               className="bg-white text-slate-700 border border-slate-200 shadow-xl px-4 py-2 rounded-full flex items-center gap-2 text-xs font-medium hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200 transition-all"
             >
-              <UserPlus size={14} />
-              Add Tenant
+              <Users size={14} />
+              Manage Tenants
             </Link>
             <Link
               href="/rooms"
@@ -670,13 +507,6 @@ export default function Dashboard() {
             >
               <BedDouble size={14} />
               Manage Rooms
-            </Link>
-            <Link
-              href="/complaints"
-              className="bg-white text-slate-700 border border-slate-200 shadow-xl px-4 py-2 rounded-full flex items-center gap-2 text-xs font-medium hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200 transition-all"
-            >
-              <ShieldAlert size={14} />
-              Complaints
             </Link>
           </div>
         )}

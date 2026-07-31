@@ -9,7 +9,7 @@ import { Card, Chip } from "@heroui/react";
 import {
   ArrowLeft, User, Phone, Mail, MapPin, Briefcase, Building2,
   Shield, IndianRupee, FileText, Download, Calendar, AlertCircle,
-  CheckCircle2, Clock, MessageCircle,
+  CheckCircle2, Clock,
 } from "lucide-react";
 import Link from "next/link";
 import CheckoutWizard from "@/components/checkout/CheckoutWizard";
@@ -164,14 +164,6 @@ export default function TenantDetailPage() {
           <Download size={12} className="inline mr-1" />
           Download Agreement
         </button>
-        <a href={`tel:${tenant.phone.replace(/\s/g, "")}`} className="px-4 py-2 text-xs font-medium bg-slate-50 text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors">
-          <Phone size={12} className="inline mr-1" />
-          Call
-        </a>
-        <a href={`https://wa.me/${tenant.phone.replace(/[+\s]/g, "")}`} target="_blank" className="px-4 py-2 text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors">
-          <MessageCircle size={12} className="inline mr-1" />
-          WhatsApp
-        </a>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

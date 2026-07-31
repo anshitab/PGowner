@@ -14,6 +14,8 @@ CREATE TABLE properties (
   total_floors int NOT NULL DEFAULT 1,
   total_rooms int NOT NULL DEFAULT 0,
   rules text[] DEFAULT '{}',
+  verification_status text NOT NULL DEFAULT 'pending',
+  verification_doc_url text,
   created_at timestamptz DEFAULT now()
 );
 
@@ -242,6 +244,9 @@ ALTER TABLE checkout_records ENABLE ROW LEVEL SECURITY;
 ALTER TABLE bed_transfers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
 
+-- RLS Policies: Public can read verified properties (for visitor booking)
+CREATE POLICY "public_read_verified" ON properties FOR SELECT TO anon USING (verification_status = 'verified');
+
 -- RLS Policies: Owner can access all data for their properties
 CREATE POLICY "owner_properties" ON properties FOR ALL USING (owner_id = auth.uid());
 
@@ -302,6 +307,10 @@ CREATE POLICY "owner_transactions" ON transactions FOR ALL USING (
 );
 
 
+-- RLS Policies: Authenticated users can browse verified properties (for tenant onboarding)
+CREATE POLICY "authenticated_browse_verified" ON properties FOR SELECT TO authenticated
+  USING (verification_status = 'verified');
+
 -- RLS Policies: Tenants can read their own data
 CREATE POLICY "tenant_read_own" ON tenants FOR SELECT USING (user_id = auth.uid());
 
@@ -323,6 +332,10 @@ CREATE POLICY "tenant_read_own_complaints" ON complaints FOR ALL USING (
 
 CREATE POLICY "tenant_read_announcements" ON announcements FOR SELECT USING (
   property_id IN (SELECT property_id FROM tenants WHERE user_id = auth.uid())
+);
+
+CREATE POLICY "tenant_read_own_rent" ON rent_collection FOR SELECT USING (
+  tenant_id IN (SELECT id FROM tenants WHERE user_id = auth.uid())
 );
 
 CREATE POLICY "tenant_read_settings" ON settings FOR SELECT USING (

@@ -2,7 +2,7 @@ import { supabase } from "./supabase";
 
 export interface ActivityEvent {
   id: string;
-  type: "payment" | "complaint" | "visitor" | "announcement" | "tenant_move" | "expense" | "maintenance" | "checkout" | "bed_transfer";
+  type: "payment" | "complaint" | "visitor" | "announcement" | "tenant_move" | "expense" | "maintenance" | "checkout" | "bed_transfer" | "room_edit";
   action: string;
   title: string;
   description: string;

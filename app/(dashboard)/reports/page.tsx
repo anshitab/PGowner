@@ -12,12 +12,12 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 const monthlyRevenue = [
-  { month: "Jan", revenue: 240000, expenses: 80000 },
-  { month: "Feb", revenue: 280000, expenses: 95000 },
-  { month: "Mar", revenue: 320000, expenses: 85000 },
-  { month: "Apr", revenue: 380000, expenses: 110000 },
-  { month: "May", revenue: 440000, expenses: 100000 },
-  { month: "Jun", revenue: 500000, expenses: 120000 },
+  { month: "Jan", revenue: 240000 },
+  { month: "Feb", revenue: 280000 },
+  { month: "Mar", revenue: 320000 },
+  { month: "Apr", revenue: 380000 },
+  { month: "May", revenue: 440000 },
+  { month: "Jun", revenue: 500000 },
 ];
 
 const occupancyTrend = [
@@ -92,7 +92,7 @@ export default function ReportsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <Card>
           <Card.Header className="px-5 pt-5 pb-0">
-            <Card.Title className="text-sm font-semibold text-slate-800">{t("reports.revenueVsExpenses")}</Card.Title>
+            <Card.Title className="text-sm font-semibold text-slate-800">{t("reports.monthlyRevenue")}</Card.Title>
           </Card.Header>
           <Card.Content className="px-5 pb-5 pt-4">
             <ResponsiveContainer width="100%" height={250}>
@@ -102,7 +102,6 @@ export default function ReportsPage() {
                 <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${v / 1000}k`} />
                 <Tooltip formatter={(value) => [`₹${Number(value).toLocaleString("en-IN")}`]} contentStyle={{ borderRadius: "10px", border: "1px solid #e2e8f0", boxShadow: "0 4px 12px -2px rgb(0 0 0 / 0.08)", fontSize: "12px" }} />
                 <Bar dataKey="revenue" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Revenue" />
-                <Bar dataKey="expenses" fill="#f59e0b" radius={[4, 4, 0, 0]} name="Expenses" />
               </BarChart>
             </ResponsiveContainer>
           </Card.Content>

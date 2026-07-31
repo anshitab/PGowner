@@ -40,7 +40,7 @@ export default function TenantsPage() {
   const { t } = useLanguage();
   const { mode } = useUserMode();
   const router = useRouter();
-  const { propertyId } = usePropertyContext();
+  const { propertyId, property } = usePropertyContext();
 
   // Form state
   const [sharingFilter, setSharingFilter] = useState<string>("Single");
@@ -183,6 +183,9 @@ export default function TenantsPage() {
           status: "occupied",
           assigned_date: form.joinDate,
         }).eq("id", availableBed.id);
+
+        await supabase.from("rooms").update({ status: "Occupied" }).eq("id", form.roomId);
+        if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("rooms-updated"));
       }
 
       // Create first rent collection entry
@@ -197,6 +200,21 @@ export default function TenantsPage() {
           amount: rent,
           due_date: dueDate.toISOString().split("T")[0],
           status: "Pending",
+        });
+      }
+
+      // Create auth account and send credentials email if email provided
+      if (form.email.trim()) {
+        const selectedRoom = rooms.find((r: Room) => r.id === form.roomId);
+        await fetch("/api/create-tenant-account", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tenantName: form.name.trim(),
+            tenantEmail: form.email.trim(),
+            pgName: property?.name || "PG",
+            roomNumber: selectedRoom?.number || "",
+          }),
         });
       }
 

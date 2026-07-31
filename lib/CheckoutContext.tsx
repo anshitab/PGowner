@@ -168,12 +168,20 @@ export function CheckoutProvider({ children }: { children: ReactNode }) {
 
   const completeCheckout = useCallback(async (id: string) => {
     const today = new Date().toISOString().split("T")[0];
+    const record = records.find((r) => r.id === id);
+
     await supabase
       .from("checkout_records")
       .update({ status: "completed", completed_date: today })
       .eq("id", id);
 
-    const record = records.find((r) => r.id === id);
+    if (record) {
+      await supabase
+        .from("tenants")
+        .update({ room_id: null, status: "Inactive" })
+        .eq("id", record.tenantId);
+    }
+
     setRecords((prev) =>
       prev.map((r) => (r.id === id ? { ...r, status: "completed" as const, completedDate: today } : r))
     );

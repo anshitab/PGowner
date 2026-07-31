@@ -1,33 +1,18 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { usePGConfig, PGConfig, PGRoom, PGBed } from "@/lib/PGConfigContext";
 import { usePropertyContext } from "@/lib/PropertyContext";
 import ConfigReview from "@/components/setup/ConfigReview";
-import { Building2, MapPin, Search, ImageIcon } from "lucide-react";
+import VerificationStep from "@/components/setup/VerificationStep";
+import { Building2, ImageIcon, X } from "lucide-react";
 import { Button } from "@heroui/react";
-
-interface PlacePrediction {
-  place_id: string;
-  description: string;
-  name?: string;
-  lat?: string;
-  lon?: string;
-}
-
-interface PlaceDetails {
-  name: string;
-  address: string;
-  lat: number | null;
-  lng: number | null;
-  photos: string[];
-}
 
 export default function SetupPage() {
   const router = useRouter();
   const { setConfig, isSetupComplete } = usePGConfig();
-  const { loading: propLoading } = usePropertyContext();
+  const { property, loading: propLoading } = usePropertyContext();
 
   // Form state
   const [name, setName] = useState("");
@@ -40,15 +25,8 @@ export default function SetupPage() {
   const [rentDouble, setRentDouble] = useState("₹8,000");
   const [rentTriple, setRentTriple] = useState("₹6,000");
   const [amenities, setAmenities] = useState<string[]>(["Fan", "WiFi"]);
-
-  // Places autocomplete
-  const [searchQuery, setSearchQuery] = useState("");
-  const [predictions, setPredictions] = useState<PlacePrediction[]>([]);
-  const [showPredictions, setShowPredictions] = useState(false);
-  const [placePhotos, setPlacePhotos] = useState<string[]>([]);
-  const [loadingPlace, setLoadingPlace] = useState(false);
-  const searchTimeout = useRef<NodeJS.Timeout>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [pgPhotos, setPgPhotos] = useState<{ file: File; preview: string }[]>([]);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   // Review state
   const [showReview, setShowReview] = useState(false);
@@ -60,62 +38,23 @@ export default function SetupPage() {
     }
   }, [isSetupComplete, propLoading, router]);
 
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setShowPredictions(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const newPhotos = files
+      .filter((f) => f.type.startsWith("image/"))
+      .slice(0, 6 - pgPhotos.length)
+      .map((file) => ({ file, preview: URL.createObjectURL(file) }));
+    setPgPhotos((prev) => [...prev, ...newPhotos].slice(0, 6));
+    if (photoInputRef.current) photoInputRef.current.value = "";
+  };
 
-  const searchPlaces = useCallback((query: string) => {
-    if (searchTimeout.current) clearTimeout(searchTimeout.current);
-    if (!query.trim() || query.length < 3) {
-      setPredictions([]);
-      return;
-    }
-    searchTimeout.current = setTimeout(async () => {
-      try {
-        const res = await fetch(`/api/places?q=${encodeURIComponent(query)}`);
-        const data = await res.json();
-        setPredictions(data.predictions || []);
-        setShowPredictions(true);
-      } catch {
-        setPredictions([]);
-      }
-    }, 300);
-  }, []);
-
-  const selectPlace = async (prediction: PlacePrediction) => {
-    setShowPredictions(false);
-    setSearchQuery(prediction.description);
-    setLoadingPlace(true);
-
-    try {
-      const res = await fetch("/api/places", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          placeId: prediction.place_id,
-          name: prediction.name,
-          description: prediction.description,
-          lat: prediction.lat,
-          lon: prediction.lon,
-        }),
-      });
-      const data = await res.json();
-      if (data.details) {
-        const details: PlaceDetails = data.details;
-        if (details.name) setName(details.name);
-        if (details.address) setAddress(details.address);
-        if (details.photos.length > 0) setPlacePhotos(details.photos);
-      }
-    } catch {
-      // Silently fail — user can still type manually
-    }
-    setLoadingPlace(false);
+  const removePhoto = (index: number) => {
+    setPgPhotos((prev) => {
+      const updated = [...prev];
+      URL.revokeObjectURL(updated[index].preview);
+      updated.splice(index, 1);
+      return updated;
+    });
   };
 
   const toggleAmenity = (amenity: string) => {
@@ -168,21 +107,42 @@ export default function SetupPage() {
   };
 
   const [setupError, setSetupError] = useState("");
+  const [showVerification, setShowVerification] = useState(false);
 
   const handleConfirm = async (finalConfig: PGConfig) => {
     setSetupError("");
     try {
       await setConfig(finalConfig);
-      router.replace("/dashboard");
+      setShowVerification(true);
     } catch (err: unknown) {
       setSetupError(err instanceof Error ? err.message : "Setup failed. Please try again.");
     }
   };
 
-  if (propLoading || isSetupComplete) {
+  if (propLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
+      </div>
+    );
+  }
+
+  if (isSetupComplete && !showVerification) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
+      </div>
+    );
+  }
+
+  if (showVerification && property) {
+    return (
+      <div className="min-h-screen bg-slate-50 py-10 px-4">
+        <VerificationStep
+          propertyId={property.id}
+          onComplete={() => router.replace("/dashboard")}
+          onSkip={() => router.replace("/dashboard")}
+        />
       </div>
     );
   }
@@ -217,76 +177,70 @@ export default function SetupPage() {
         {/* Form */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-6">
 
-          {/* Google Places Search */}
-          <div ref={dropdownRef} className="relative">
-            <label className="block text-xs font-medium text-slate-700 mb-1.5">Search your PG on Google</label>
-            <div className="relative">
-              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => { setSearchQuery(e.target.value); searchPlaces(e.target.value); }}
-                onFocus={() => predictions.length > 0 && setShowPredictions(true)}
-                placeholder="Search PG name or address..."
-                className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300 transition-all"
-              />
-            </div>
-            {showPredictions && predictions.length > 0 && (
-              <div className="absolute z-20 top-full mt-1 w-full bg-white border border-slate-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
-                {predictions.map((p) => (
-                  <button
-                    key={p.place_id}
-                    onClick={() => selectPlace(p)}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0"
-                  >
-                    <MapPin size={14} className="text-slate-400 shrink-0" />
-                    <span className="text-sm text-slate-700 truncate">{p.description}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-            {loadingPlace && (
-              <p className="text-xs text-indigo-500 mt-1">Fetching details...</p>
-            )}
+          {/* Property Name */}
+          <div>
+            <label className="block text-xs font-medium text-slate-700 mb-1.5">Property Name</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g., Sunshine PG"
+              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300"
+            />
           </div>
 
-          {/* Photos from Google */}
-          {placePhotos.length > 0 && (
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1.5 flex items-center gap-1.5">
-                <ImageIcon size={12} />
-                Photos from Google
-              </label>
-              <div className="flex gap-2 overflow-x-auto pb-1">
-                {placePhotos.map((url, i) => (
-                  <img key={i} src={url} alt={`PG photo ${i + 1}`} className="w-32 h-24 rounded-lg object-cover border border-slate-200 shrink-0" />
+          {/* Full Address */}
+          <div>
+            <label className="block text-xs font-medium text-slate-700 mb-1.5">Full Address</label>
+            <textarea
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="e.g., #42, 1st Cross, 5th Block, Koramangala, Bangalore - 560034"
+              rows={2}
+              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300 resize-none"
+            />
+          </div>
+
+          {/* PG Photos */}
+          <div>
+            <label className="block text-xs font-medium text-slate-700 mb-1.5 flex items-center gap-1.5">
+              <ImageIcon size={12} />
+              PG Photos <span className="text-slate-400 font-normal">(optional, max 6)</span>
+            </label>
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/jpg"
+              multiple
+              onChange={handlePhotoUpload}
+              className="hidden"
+            />
+            {pgPhotos.length > 0 && (
+              <div className="flex gap-2 overflow-x-auto pb-2 mb-2">
+                {pgPhotos.map((photo, i) => (
+                  <div key={i} className="relative shrink-0">
+                    <img src={photo.preview} alt={`PG photo ${i + 1}`} className="w-28 h-20 rounded-lg object-cover border border-slate-200" />
+                    <button
+                      type="button"
+                      onClick={() => removePhoto(i)}
+                      className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center"
+                    >
+                      <X size={10} />
+                    </button>
+                  </div>
                 ))}
               </div>
-            </div>
-          )}
-
-          {/* Property Name & Address */}
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1.5">Property Name</label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="e.g., Sunshine PG"
-                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1.5">Address / Area</label>
-              <input
-                type="text"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder="e.g., Koramangala, Bangalore"
-                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300"
-              />
-            </div>
+            )}
+            {pgPhotos.length < 6 && (
+              <button
+                type="button"
+                onClick={() => photoInputRef.current?.click()}
+                className="w-full border-2 border-dashed border-slate-300 rounded-lg py-4 text-center hover:border-indigo-400 hover:bg-indigo-50/30 transition-colors"
+              >
+                <ImageIcon size={20} className="mx-auto text-slate-400 mb-1" />
+                <p className="text-xs text-slate-500">Click to upload photos</p>
+              </button>
+            )}
           </div>
 
           {/* Type */}

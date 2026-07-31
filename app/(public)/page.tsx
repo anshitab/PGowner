@@ -10,7 +10,6 @@ import {
   User,
   Phone,
   MessageSquare,
-  Search,
   CheckCircle2,
   X,
   MapPin,
@@ -21,7 +20,6 @@ import {
   ShieldCheck,
   Lightbulb,
   AlertCircle,
-  Globe,
 } from "lucide-react";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useAuth } from "@/lib/AuthContext";
@@ -140,15 +138,13 @@ export default function LandingPage() {
   const router = useRouter();
 
   const [showVisitModal, setShowVisitModal] = useState(false);
-  const [googleSearch, setGoogleSearch] = useState("");
-  const [pgSearch, setPgSearch] = useState("");
-  const [pgPredictions, setPgPredictions] = useState<{ place_id: string; description: string; name?: string }[]>([]);
-  const [loadingPredictions, setLoadingPredictions] = useState(false);
+  const [pgFilter, setPgFilter] = useState<{ gender: string; area: string }>({ gender: "", area: "" });
+  const [pgResults, setPgResults] = useState<{ id: string; name: string; address: string; type: string }[]>([]);
+  const [loadingPgs, setLoadingPgs] = useState(false);
   const [visitForm, setVisitForm] = useState({
     name: "",
     phone: "",
     date: "",
-    purpose: "",
     message: "",
     propertyId: "",
     propertyName: "",
@@ -159,43 +155,37 @@ export default function LandingPage() {
   const [visitError, setVisitError] = useState("");
 
   useEffect(() => {
-    if (isAuthenticated) {
-      router.replace("/dashboard");
-    }
-  }, [isAuthenticated, router]);
-
-  useEffect(() => {
-    if (!pgSearch.trim()) {
-      setPgPredictions([]);
+    if (!pgFilter.gender && !pgFilter.area) {
+      setPgResults([]);
       return;
     }
     const timer = setTimeout(async () => {
-      setLoadingPredictions(true);
-      try {
-        const res = await fetch(`/api/places?q=${encodeURIComponent(pgSearch + " PG")}`);
-        const data = await res.json();
-        setPgPredictions(data.predictions || []);
-      } catch {
-        setPgPredictions([]);
+      setLoadingPgs(true);
+      let query = supabase.from("properties").select("id, name, address, type").eq("verification_status", "verified");
+      if (pgFilter.gender) {
+        if (pgFilter.gender === "Co-ed") {
+          query = query.eq("type", "Co-ed PG");
+        } else {
+          query = query.in("type", [`${pgFilter.gender} PG`, "Co-ed PG"]);
+        }
       }
-      setLoadingPredictions(false);
+      if (pgFilter.area.trim()) {
+        query = query.ilike("address", `%${pgFilter.area.trim()}%`);
+      }
+      const { data } = await query.limit(20);
+      setPgResults(data || []);
+      setLoadingPgs(false);
     }, 300);
     return () => clearTimeout(timer);
-  }, [pgSearch]);
+  }, [pgFilter.gender, pgFilter.area]);
 
-  if (isAuthenticated) {
-    return null;
-  }
-
-  const handleSelectPg = (prediction: { place_id: string; description: string; name?: string }) => {
+  const handleSelectPg = (pg: { id: string; name: string; address: string }) => {
     setVisitForm({
       ...visitForm,
-      propertyId: prediction.place_id,
-      propertyName: prediction.name || prediction.description.split(",")[0],
-      pgAddress: prediction.description,
+      propertyId: pg.id,
+      propertyName: pg.name,
+      pgAddress: pg.address || "",
     });
-    setPgSearch("");
-    setPgPredictions([]);
   };
 
   const handleVisitSubmit = async (e: React.FormEvent) => {
@@ -205,25 +195,16 @@ export default function LandingPage() {
     if (!visitForm.name.trim()) { setVisitError("Please enter your name"); return; }
     if (!visitForm.phone.trim()) { setVisitError("Please enter your phone number"); return; }
     if (!visitForm.date) { setVisitError("Please select a visit date"); return; }
-    if (!visitForm.purpose) { setVisitError("Please select a purpose"); return; }
 
     setVisitSubmitting(true);
 
-    // Check if this PG exists in our database by matching name
-    const { data: matchedPg } = await supabase
-      .from("properties")
-      .select("id")
-      .ilike("name", `%${visitForm.propertyName}%`)
-      .limit(1)
-      .maybeSingle();
-
     const { error } = await supabase.from("visitors").insert({
-      property_id: matchedPg?.id || null,
+      property_id: visitForm.propertyId,
       tenant_id: null,
       name: visitForm.name.trim(),
       phone: visitForm.phone.trim(),
-      purpose: visitForm.purpose,
-      message: `PG: ${visitForm.propertyName}${visitForm.pgAddress ? ` (${visitForm.pgAddress})` : ""}${visitForm.message.trim() ? `\n${visitForm.message.trim()}` : ""}`,
+      purpose: "Looking for a room",
+      message: visitForm.message.trim() || null,
       visit_date: visitForm.date,
       status: "pending",
     });
@@ -237,19 +218,13 @@ export default function LandingPage() {
   };
 
   const resetVisitForm = () => {
-    setVisitForm({ name: "", phone: "", date: "", purpose: "", message: "", propertyId: "", propertyName: "", pgAddress: "" });
+    setVisitForm({ name: "", phone: "", date: "", message: "", propertyId: "", propertyName: "", pgAddress: "" });
+    setPgFilter({ gender: "", area: "" });
+    setPgResults([]);
     setVisitSubmitted(false);
     setVisitError("");
-    setPgSearch("");
-    setPgPredictions([]);
   };
 
-  const handleGoogleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!googleSearch.trim()) return;
-    const query = encodeURIComponent(`PG near ${googleSearch.trim()} Bangalore`);
-    window.open(`https://www.google.com/search?q=${query}`, "_blank");
-  };
 
 
   return (
@@ -371,40 +346,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Search PGs on Google */}
-      <section className="py-14 bg-white">
-        <div className="max-w-3xl mx-auto px-6 text-center">
-          <div className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 text-xs font-medium px-3 py-1.5 rounded-full mb-4">
-            <Globe size={12} />
-            Find PGs Online
-          </div>
-          <h2 className="text-2xl font-bold text-slate-900 mb-2">Search for PGs on Google</h2>
-          <p className="text-sm text-slate-500 mb-6">Enter a location or area name to find PGs listed on Google</p>
-          <form onSubmit={handleGoogleSearch} className="flex items-center gap-3 max-w-xl mx-auto">
-            <div className="relative flex-1">
-              <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                placeholder="e.g., Koramangala, BTM Layout, HSR..."
-                value={googleSearch}
-                onChange={(e) => setGoogleSearch(e.target.value)}
-                className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-              />
-            </div>
-            <button
-              type="submit"
-              className="px-6 py-3.5 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors flex items-center gap-2 shrink-0 shadow-lg shadow-blue-600/20"
-            >
-              <Search size={16} />
-              Search
-            </button>
-          </form>
-          <p className="text-xs text-slate-400 mt-3 flex items-center justify-center gap-1">
-            <Globe size={10} />
-            Opens Google search results in a new tab
-          </p>
-        </div>
-      </section>
 
       {/* Bangalore Localities Guide */}
       <section className="py-20 bg-slate-50">
@@ -739,7 +680,43 @@ export default function LandingPage() {
                     <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{visitError}</p>
                   )}
 
-                  {/* PG Selection via Google Places */}
+                  {/* Filters: Gender + Area */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1.5">Looking for</label>
+                      <div className="flex gap-2">
+                        {["Boys", "Girls", "Co-ed"].map((g) => (
+                          <button
+                            key={g}
+                            type="button"
+                            onClick={() => setPgFilter({ ...pgFilter, gender: pgFilter.gender === g ? "" : g })}
+                            className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg border transition-colors ${
+                              pgFilter.gender === g
+                                ? "bg-blue-600 text-white border-blue-600"
+                                : "bg-slate-50 text-slate-600 border-slate-200 hover:border-blue-300"
+                            }`}
+                          >
+                            {g}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1.5">Area</label>
+                      <div className="relative">
+                        <MapPin size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="text"
+                          placeholder="e.g., Koramangala"
+                          value={pgFilter.area}
+                          onChange={(e) => setPgFilter({ ...pgFilter, area: e.target.value })}
+                          className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* PG Results */}
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">
                       Select PG <span className="text-red-500">*</span>
@@ -759,46 +736,36 @@ export default function LandingPage() {
                         </button>
                       </div>
                     ) : (
-                      <div>
-                        <div className="relative">
-                          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                          <input
-                            type="text"
-                            placeholder="Search PG on Google (e.g., Sai Balaji PG)"
-                            value={pgSearch}
-                            onChange={(e) => setPgSearch(e.target.value)}
-                            className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                          />
-                        </div>
-                        {(pgSearch.trim() || loadingPredictions) && (
-                          <div className="mt-2 border border-slate-200 rounded-lg max-h-48 overflow-y-auto">
-                            {loadingPredictions ? (
-                              <div className="px-3 py-4 text-center text-xs text-slate-500">Searching on Google...</div>
-                            ) : pgPredictions.length === 0 ? (
-                              <div className="px-3 py-4 text-center text-xs text-slate-500">
-                                {pgSearch.trim().length < 3 ? "Type at least 3 characters..." : "No results found. Try a different name."}
-                              </div>
-                            ) : (
-                              pgPredictions.map((p) => (
-                                <button
-                                  key={p.place_id}
-                                  type="button"
-                                  onClick={() => handleSelectPg(p)}
-                                  className="w-full text-left px-3 py-2.5 hover:bg-blue-50 border-b border-slate-100 last:border-0 transition-colors"
-                                >
-                                  <div className="flex items-start gap-2">
-                                    <MapPin size={13} className="text-blue-500 shrink-0 mt-0.5" />
-                                    <p className="text-sm text-slate-800">{p.description}</p>
+                      <div className="border border-slate-200 rounded-lg max-h-48 overflow-y-auto">
+                        {loadingPgs ? (
+                          <div className="px-3 py-4 text-center text-xs text-slate-500">Searching...</div>
+                        ) : !pgFilter.gender && !pgFilter.area ? (
+                          <div className="px-3 py-4 text-center text-xs text-slate-500">Select a gender or enter an area to see PGs</div>
+                        ) : pgResults.length === 0 ? (
+                          <div className="px-3 py-4 text-center text-xs text-slate-500">No PGs found matching your filters.</div>
+                        ) : (
+                          pgResults.map((pg) => (
+                            <button
+                              key={pg.id}
+                              type="button"
+                              onClick={() => handleSelectPg(pg)}
+                              className={`w-full text-left px-3 py-2.5 hover:bg-blue-50 border-b border-slate-100 last:border-0 transition-colors ${
+                                visitForm.propertyId === pg.id ? "bg-blue-50" : ""
+                              }`}
+                            >
+                              <div className="flex items-start gap-2">
+                                <Building2 size={13} className="text-blue-500 shrink-0 mt-0.5" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-slate-800">{pg.name}</p>
+                                  <div className="flex items-center gap-2 mt-0.5">
+                                    {pg.address && <p className="text-xs text-slate-500 truncate">{pg.address}</p>}
+                                    <span className="text-[10px] text-slate-400 shrink-0">{pg.type}</span>
                                   </div>
-                                </button>
-                              ))
-                            )}
-                          </div>
+                                </div>
+                              </div>
+                            </button>
+                          ))
                         )}
-                        <p className="text-[10px] text-slate-400 mt-1.5 flex items-center gap-1">
-                          <Globe size={9} />
-                          Powered by Google Places
-                        </p>
                       </div>
                     )}
                   </div>
@@ -837,36 +804,17 @@ export default function LandingPage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                        Visit Date <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="date"
-                        min={new Date().toISOString().split("T")[0]}
-                        value={visitForm.date}
-                        onChange={(e) => setVisitForm({ ...visitForm, date: e.target.value })}
-                        className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                        Purpose <span className="text-red-500">*</span>
-                      </label>
-                      <select
-                        value={visitForm.purpose}
-                        onChange={(e) => setVisitForm({ ...visitForm, purpose: e.target.value })}
-                        className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                      >
-                        <option value="">Select purpose</option>
-                        <option value="Room inspection">Room inspection</option>
-                        <option value="Looking for a room">Looking for a room</option>
-                        <option value="Room for someone">Room for someone</option>
-                        <option value="General enquiry">General enquiry</option>
-                        <option value="Other">Other</option>
-                      </select>
-                    </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      Visit Date <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      min={new Date().toISOString().split("T")[0]}
+                      value={visitForm.date}
+                      onChange={(e) => setVisitForm({ ...visitForm, date: e.target.value })}
+                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    />
                   </div>
 
                   <div>

@@ -1,7 +1,7 @@
 "use client";
 
-import { Search, Download, IndianRupee, ExternalLink, CheckCircle2, Clock, AlertTriangle, Send, X, Plus } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Search, Download, IndianRupee, CheckCircle2, Clock, AlertTriangle, Send, X, Plus, Upload, Camera, ShieldCheck, XCircle } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
 import { Card, Chip, Button } from "@heroui/react";
 import EmptyState from "@/components/EmptyState";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
@@ -30,6 +30,11 @@ export default function RentPage() {
   const [recordingFor, setRecordingFor] = useState<RentEntry | null>(null);
   const [recordMethod, setRecordMethod] = useState<"Cash" | "UPI" | "Bank Transfer">("Cash");
   const [recordSubmitting, setRecordSubmitting] = useState(false);
+  const [payingEntry, setPayingEntry] = useState<RentEntry | null>(null);
+  const [payScreenshot, setPayScreenshot] = useState<{ file: File; preview: string } | null>(null);
+  const [payStatus, setPayStatus] = useState<"idle" | "verifying" | "verified" | "rejected">("idle");
+  const [payError, setPayError] = useState("");
+  const payFileRef = useRef<HTMLInputElement>(null);
   const { t } = useLanguage();
   const { mode } = useUserMode();
   const { propertyId, property } = usePropertyContext();
@@ -83,10 +88,10 @@ export default function RentPage() {
 
         {/* Current Rent Card */}
         <Card className="overflow-hidden">
-          <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-6 text-white">
-            <p className="text-sm text-blue-100 font-medium">Amount Due</p>
+          <div className="bg-gradient-to-br from-emerald-600 to-teal-700 p-6 text-white">
+            <p className="text-sm text-emerald-100 font-medium">Amount Due</p>
             <p className="text-4xl font-bold mt-1">{myRent ? `₹${myRent.amount.toLocaleString("en-IN")}` : "₹0"}</p>
-            <div className="flex items-center gap-4 mt-4 text-sm text-blue-100">
+            <div className="flex items-center gap-4 mt-4 text-sm text-emerald-100">
               <span>Room: {myRent?.tenants?.rooms?.number || "—"}</span>
               <span>Due: {myRent ? new Date(myRent.due_date).toLocaleDateString("en-IN") : "—"}</span>
             </div>
@@ -110,14 +115,11 @@ export default function RentPage() {
 
             {myRent?.status !== "Paid" && (
               <button
-                onClick={() => {
-                  alert("Razorpay integration coming soon! This will redirect to the payment gateway.");
-                }}
-                className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 text-sm"
+                onClick={() => { setPayingEntry(myRent!); setPayStatus("idle"); setPayScreenshot(null); setPayError(""); }}
+                className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 text-sm"
               >
-                <IndianRupee size={16} />
-                Pay Now
-                <ExternalLink size={14} className="ml-1 opacity-70" />
+                <Upload size={16} />
+                I've Paid — Upload Proof
               </button>
             )}
 
@@ -169,12 +171,176 @@ export default function RentPage() {
           </Card.Content>
         </Card>
 
-        {/* Razorpay info */}
+        {/* UPI info */}
         <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl">
           <p className="text-xs text-slate-500 text-center">
-            Payments powered by <span className="font-semibold text-blue-600">Razorpay</span> — UPI, Cards, Net Banking supported
+            Pay via UPI and upload a screenshot — AI verifies and notifies your owner instantly
           </p>
         </div>
+
+        {/* Payment Screenshot Upload Modal */}
+        {payingEntry && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+                <h3 className="text-base font-semibold text-slate-900">Upload Payment Proof</h3>
+                <button onClick={() => { setPayingEntry(null); setPayScreenshot(null); setPayStatus("idle"); }} className="p-1 hover:bg-slate-100 rounded-lg transition-colors">
+                  <X size={18} className="text-slate-500" />
+                </button>
+              </div>
+
+              <div className="px-6 py-5 space-y-4">
+                {payStatus === "verified" ? (
+                  <div className="text-center py-6">
+                    <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <ShieldCheck size={28} className="text-emerald-600" />
+                    </div>
+                    <h4 className="text-lg font-semibold text-emerald-800 mb-1">Payment Verified!</h4>
+                    <p className="text-sm text-slate-500">Your rent has been marked as paid and your owner has been notified.</p>
+                    <button
+                      onClick={() => { setPayingEntry(null); setPayScreenshot(null); setPayStatus("idle"); fetchRent(); }}
+                      className="mt-6 px-6 py-2.5 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 transition-colors"
+                    >
+                      Done
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-1.5">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-slate-500">Amount</span>
+                        <span className="font-bold text-slate-900">₹{payingEntry.amount.toLocaleString("en-IN")}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-slate-500">Due Date</span>
+                        <span className="font-medium text-slate-800">{new Date(payingEntry.due_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">Payment Screenshot</label>
+                      <input
+                        ref={payFileRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/jpg"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file && file.size <= 10 * 1024 * 1024) {
+                            setPayScreenshot({ file, preview: URL.createObjectURL(file) });
+                            setPayError("");
+                          } else if (file) {
+                            setPayError("File too large. Max 10MB.");
+                          }
+                        }}
+                        className="hidden"
+                      />
+                      {payScreenshot ? (
+                        <div className="relative">
+                          <img src={payScreenshot.preview} alt="Payment screenshot" className="w-full h-48 object-contain bg-slate-100 rounded-lg border border-slate-200" />
+                          <button
+                            onClick={() => { URL.revokeObjectURL(payScreenshot.preview); setPayScreenshot(null); if (payFileRef.current) payFileRef.current.value = ""; }}
+                            className="absolute top-2 right-2 w-7 h-7 bg-white/90 border border-slate-200 rounded-full flex items-center justify-center hover:bg-red-50 transition-colors"
+                          >
+                            <X size={14} className="text-slate-600" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => payFileRef.current?.click()}
+                          className="w-full border-2 border-dashed border-slate-300 rounded-xl py-8 text-center hover:border-blue-400 hover:bg-blue-50/30 transition-colors"
+                        >
+                          <Camera size={24} className="mx-auto text-slate-400 mb-2" />
+                          <p className="text-sm font-medium text-slate-600">Upload UPI Payment Screenshot</p>
+                          <p className="text-xs text-slate-400 mt-1">JPG or PNG, max 10MB</p>
+                        </button>
+                      )}
+                    </div>
+
+                    {payStatus === "rejected" && (
+                      <div className="flex items-start gap-2 text-sm text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2.5">
+                        <XCircle size={16} className="shrink-0 mt-0.5" />
+                        <div>
+                          <p className="font-medium">Verification Failed</p>
+                          <p className="text-xs mt-0.5">{payError || "Could not verify. Please upload a clear screenshot of a successful UPI payment."}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {payError && payStatus !== "rejected" && (
+                      <p className="text-sm text-red-600">{payError}</p>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {payStatus !== "verified" && (
+                <div className="px-6 py-4 border-t border-slate-100 flex gap-3">
+                  <button
+                    onClick={() => { setPayingEntry(null); setPayScreenshot(null); setPayStatus("idle"); }}
+                    className="flex-1 px-4 py-2.5 text-sm font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (!payScreenshot || !payingEntry) return;
+                      setPayStatus("verifying");
+                      setPayError("");
+                      try {
+                        const reader = new FileReader();
+                        const base64 = await new Promise<string>((resolve, reject) => {
+                          reader.onload = () => {
+                            const result = reader.result as string;
+                            resolve(result.split(",")[1]);
+                          };
+                          reader.onerror = reject;
+                          reader.readAsDataURL(payScreenshot.file);
+                        });
+
+                        const res = await fetch("/api/verify-payment", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            tenantId: payingEntry.tenant_id,
+                            propertyId,
+                            rentCollectionId: payingEntry.id,
+                            imageBase64: base64,
+                            amount: payingEntry.amount,
+                          }),
+                        });
+
+                        const data = await res.json();
+                        if (data.status === "verified") {
+                          setPayStatus("verified");
+                        } else {
+                          setPayStatus("rejected");
+                          setPayError(data.reason || data.error || "Verification failed");
+                        }
+                      } catch {
+                        setPayStatus("rejected");
+                        setPayError("Something went wrong. Please try again.");
+                      }
+                    }}
+                    disabled={!payScreenshot || payStatus === "verifying"}
+                    className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                  >
+                    {payStatus === "verifying" ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Verifying...
+                      </>
+                    ) : (
+                      <>
+                        <ShieldCheck size={14} />
+                        Submit for Verification
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     );
   }

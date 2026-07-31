@@ -32,9 +32,9 @@ interface BedContextType {
   beds: Bed[];
   transfers: BedTransfer[];
   loading: boolean;
-  assignBed: (bedId: string, tenantId: string, tenantName: string) => Promise<void>;
+  assignBed: (bedId: string, tenantId: string, tenantName: string, authUserId?: string | null) => Promise<void>;
   unassignBed: (bedId: string) => Promise<void>;
-  transferBed: (fromBedId: string, toBedId: string, tenantId: string, tenantName: string, reason: string) => Promise<void>;
+  transferBed: (fromBedId: string, toBedId: string, tenantId: string, tenantName: string, reason: string, authUserId?: string | null) => Promise<void>;
   updateBedStatus: (bedId: string, status: Bed["status"]) => Promise<void>;
   getBedsForRoom: (roomId: string) => Bed[];
   refetch: () => Promise<void>;
@@ -105,22 +105,29 @@ export function BedProvider({ children }: { children: ReactNode }) {
     fetchBeds();
   }, [fetchBeds]);
 
-  const assignBed = useCallback(async (bedId: string, tenantId: string, tenantName: string) => {
+  const assignBed = useCallback(async (bedId: string, tenantId: string, tenantName: string, authUserId?: string | null) => {
     const today = new Date().toISOString().split("T")[0];
-    await supabase
-      .from("beds")
-      .update({ tenant_id: tenantId, tenant_name: tenantName, status: "occupied", assigned_date: today })
-      .eq("id", bedId);
+    const bed = beds.find((b) => b.id === bedId);
+
+    const bedUpdate: Record<string, unknown> = { tenant_name: tenantName, status: "occupied", assigned_date: today };
+    if (authUserId) bedUpdate.tenant_id = authUserId;
+    await supabase.from("beds").update(bedUpdate).eq("id", bedId);
+
+    if (bed) {
+      await supabase.from("tenants").update({ room_id: bed.roomId }).eq("id", tenantId);
+      await supabase.from("rooms").update({ status: "Occupied" }).eq("id", bed.roomId);
+    }
+
+    if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("rooms-updated"));
 
     setBeds((prev) =>
       prev.map((b) =>
         b.id === bedId
-          ? { ...b, tenantId, tenantName, status: "occupied" as const, assignedDate: today }
+          ? { ...b, tenantId: authUserId || tenantId, tenantName, status: "occupied" as const, assignedDate: today }
           : b
       )
     );
 
-    const bed = beds.find((b) => b.id === bedId);
     logActivity({
       type: "bed_transfer",
       action: "assigned",
@@ -141,6 +148,12 @@ export function BedProvider({ children }: { children: ReactNode }) {
       .update({ tenant_id: null, tenant_name: null, status: "available", assigned_date: null })
       .eq("id", bedId);
 
+    if (bed?.tenantId) {
+      await supabase.from("tenants").update({ room_id: null }).eq("user_id", bed.tenantId);
+    } else if (bed?.tenantName) {
+      await supabase.from("tenants").update({ room_id: null }).eq("name", bed.tenantName).eq("room_id", bed.roomId);
+    }
+
     setBeds((prev) =>
       prev.map((b) =>
         b.id === bedId
@@ -148,6 +161,16 @@ export function BedProvider({ children }: { children: ReactNode }) {
           : b
       )
     );
+
+    if (bed) {
+      const { data: dbBeds } = await supabase
+        .from("beds")
+        .select("status")
+        .eq("room_id", bed.roomId);
+      const hasOccupied = dbBeds?.some((b) => b.status === "occupied") ?? false;
+      await supabase.from("rooms").update({ status: hasOccupied ? "Occupied" : "Vacant" }).eq("id", bed.roomId);
+      if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("rooms-updated"));
+    }
 
     if (bed?.tenantName) {
       logActivity({
@@ -163,19 +186,34 @@ export function BedProvider({ children }: { children: ReactNode }) {
     }
   }, [beds, propertyId]);
 
-  const transferBed = useCallback(async (fromBedId: string, toBedId: string, tenantId: string, tenantName: string, reason: string) => {
+  const transferBed = useCallback(async (fromBedId: string, toBedId: string, tenantId: string, tenantName: string, reason: string, authUserId?: string | null) => {
     const fromBed = beds.find((b) => b.id === fromBedId);
     const toBed = beds.find((b) => b.id === toBedId);
     if (!fromBed || !toBed || !propertyId) return;
 
     const today = new Date().toISOString().split("T")[0];
 
+    const toBedUpdate: Record<string, unknown> = { tenant_name: tenantName, status: "occupied", assigned_date: today };
+    if (authUserId) toBedUpdate.tenant_id = authUserId;
+
+    // Look up actual tenants table record for bed_transfers FK and room_id sync
+    const { data: tenantRecord } = await supabase
+      .from("tenants")
+      .select("id")
+      .eq("property_id", propertyId)
+      .eq("name", tenantName)
+      .eq("status", "Active")
+      .limit(1)
+      .single();
+
+    const tenantRecordId = tenantRecord?.id || tenantId;
+
     await Promise.all([
       supabase.from("beds").update({ tenant_id: null, tenant_name: null, status: "available", assigned_date: null }).eq("id", fromBedId),
-      supabase.from("beds").update({ tenant_id: tenantId, tenant_name: tenantName, status: "occupied", assigned_date: today }).eq("id", toBedId),
+      supabase.from("beds").update(toBedUpdate).eq("id", toBedId),
       supabase.from("bed_transfers").insert({
         property_id: propertyId,
-        tenant_id: tenantId,
+        tenant_id: tenantRecordId,
         tenant_name: tenantName,
         from_bed_id: fromBedId,
         to_bed_id: toBedId,
@@ -184,6 +222,7 @@ export function BedProvider({ children }: { children: ReactNode }) {
         reason,
         date: today,
       }),
+      supabase.from("tenants").update({ room_id: toBed.roomId }).eq("id", tenantRecordId),
     ]);
 
     setBeds((prev) =>
@@ -206,6 +245,17 @@ export function BedProvider({ children }: { children: ReactNode }) {
       date: today,
       status: "completed" as const,
     }, ...prev]);
+
+    if (fromBed.roomId !== toBed.roomId) {
+      const { data: fromRoomBeds } = await supabase
+        .from("beds")
+        .select("status")
+        .eq("room_id", fromBed.roomId);
+      const fromHasOccupied = fromRoomBeds?.some((b) => b.status === "occupied") ?? false;
+      await supabase.from("rooms").update({ status: fromHasOccupied ? "Occupied" : "Vacant" }).eq("id", fromBed.roomId);
+      await supabase.from("rooms").update({ status: "Occupied" }).eq("id", toBed.roomId);
+      if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("rooms-updated"));
+    }
 
     logActivity({
       type: "bed_transfer",

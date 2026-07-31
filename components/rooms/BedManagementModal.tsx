@@ -10,6 +10,7 @@ import { supabase } from "@/lib/supabase";
 interface Tenant {
   id: string;
   name: string;
+  user_id: string | null;
 }
 
 interface Props {
@@ -36,7 +37,7 @@ export default function BedManagementModal({ bedId, roomId, onClose }: Props) {
 
       const { data } = await supabase
         .from("tenants")
-        .select("id, name")
+        .select("id, name, user_id")
         .eq("property_id", propertyId)
         .eq("status", "Active");
 
@@ -49,11 +50,13 @@ export default function BedManagementModal({ bedId, roomId, onClose }: Props) {
     fetchTenants();
   }, [propertyId]);
 
-  const assignedTenantIds = new Set(beds.filter((b) => b.tenantId).map((b) => b.tenantId));
+  const assignedTenantNames = new Set(
+    beds.filter((b) => b.status === "occupied" && b.tenantName).map((b) => b.tenantName)
+  );
 
   const availableTenants = useMemo(() => {
-    return tenants.filter((t) => !assignedTenantIds.has(t.id));
-  }, [tenants, assignedTenantIds]);
+    return tenants.filter((t) => !assignedTenantNames.has(t.name));
+  }, [tenants, assignedTenantNames]);
 
   const filtered = useMemo(() => {
     if (!search.trim()) return availableTenants;
@@ -65,7 +68,7 @@ export default function BedManagementModal({ bedId, roomId, onClose }: Props) {
     if (!selectedTenant) return;
     const tenant = tenants.find((t) => t.id === selectedTenant);
     if (!tenant) return;
-    assignBed(bedId, tenant.id, tenant.name);
+    assignBed(bedId, tenant.id, tenant.name, tenant.user_id);
     onClose();
   };
 

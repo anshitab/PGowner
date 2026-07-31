@@ -8,7 +8,6 @@ import {
   DoorOpen,
   Users,
   IndianRupee,
-  UserPlus,
   CreditCard,
   MessageSquareWarning,
   FileBarChart,
@@ -37,7 +36,6 @@ const allNavItems: NavItem[] = [
   { key: "nav.rooms", icon: "DoorOpen", href: "/rooms", ownerOnly: true },
   { key: "nav.tenants", icon: "Users", href: "/tenants", ownerOnly: true },
   { key: "nav.rent", icon: "IndianRupee", href: "/rent" },
-  { key: "nav.visitors", icon: "UserPlus", href: "/visitors", ownerOnly: true },
   { key: "nav.payments", icon: "CreditCard", href: "/payments", ownerOnly: true },
   { key: "nav.complaints", icon: "MessageSquareWarning", href: "/complaints" },
   { key: "nav.myRoom", icon: "Home", href: "/my-room", tenantOnly: true },
@@ -50,7 +48,6 @@ const icons: Record<string, React.ComponentType<{ size?: number }>> = {
   DoorOpen,
   Users,
   IndianRupee,
-  UserPlus,
   CreditCard,
   MessageSquareWarning,
   FileBarChart,
@@ -70,14 +67,28 @@ export default function Sidebar() {
     ? allNavItems.filter((item) => !item.tenantOnly)
     : allNavItems.filter((item) => !item.ownerOnly);
 
+  const isTenant = mode === "tenant";
+  const accentColor = isTenant ? "emerald" : "blue";
+
   return (
-    <aside className="fixed left-0 top-0 h-screen w-64 bg-[var(--sidebar-bg)] text-[var(--sidebar-text)] flex flex-col z-50">
+    <aside className={`fixed left-0 top-0 h-screen w-64 flex flex-col z-50 ${
+      isTenant
+        ? "bg-gradient-to-b from-slate-900 via-slate-900 to-emerald-950"
+        : "bg-[var(--sidebar-bg)]"
+    } text-[var(--sidebar-text)]`}>
       <div className="p-6 border-b border-white/10">
         <Link href="/dashboard" className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
-            <Building2 size={16} className="text-white" />
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+            isTenant ? "bg-emerald-600" : "bg-blue-600"
+          }`}>
+            {isTenant ? <Home size={16} className="text-white" /> : <Building2 size={16} className="text-white" />}
           </div>
           <h1 className="text-lg font-bold text-white tracking-tight">ProManage</h1>
+          {isTenant && (
+            <span className="ml-auto text-[10px] font-medium bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full">
+              Tenant
+            </span>
+          )}
         </Link>
       </div>
 
@@ -95,12 +106,16 @@ export default function Sidebar() {
                   href={item.href}
                   className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 text-sm font-medium ${
                     isActive
-                      ? "bg-white/10 text-white shadow-sm"
+                      ? isTenant
+                        ? "bg-emerald-500/15 text-emerald-100 shadow-sm"
+                        : "bg-white/10 text-white shadow-sm"
                       : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
                   }`}
                 >
                   {isActive && (
-                    <span className="absolute left-0 w-[3px] h-5 bg-blue-500 rounded-r-full" />
+                    <span className={`absolute left-0 w-[3px] h-5 rounded-r-full ${
+                      isTenant ? "bg-emerald-500" : "bg-blue-500"
+                    }`} />
                   )}
                   {Icon && <Icon size={18} />}
                   <span>{t(item.key)}</span>
@@ -126,7 +141,7 @@ export default function Sidebar() {
           >
             <Bell size={18} />
             <span>{t("nav.notifications")}</span>
-            <span className="ml-auto w-5 h-5 rounded-full bg-blue-600 text-[10px] font-bold text-white flex items-center justify-center">
+            <span className={`ml-auto w-5 h-5 rounded-full text-[10px] font-bold text-white flex items-center justify-center bg-${accentColor}-600`}>
               3
             </span>
           </Link>
@@ -135,7 +150,7 @@ export default function Sidebar() {
           href="/settings"
           className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 text-sm font-medium ${
             pathname === "/settings"
-              ? "bg-white/10 text-white"
+              ? isTenant ? "bg-emerald-500/15 text-emerald-100" : "bg-white/10 text-white"
               : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
           }`}
         >

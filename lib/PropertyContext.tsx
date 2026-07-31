@@ -13,6 +13,8 @@ export interface Property {
   total_floors: number;
   total_rooms: number;
   rules: string[];
+  verification_status: "pending" | "verified" | "rejected";
+  verification_doc_url: string | null;
   created_at: string;
 }
 
@@ -40,6 +42,28 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
   const fetchProperty = useCallback(async () => {
     if (!user) {
       setProperty(null);
+      setLoading(false);
+      return;
+    }
+
+    if (user.role === "tenant") {
+      // For tenants: find their linked tenant record, then fetch that property
+      const { data: tenant } = await supabase
+        .from("tenants")
+        .select("property_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (tenant?.property_id) {
+        const { data: prop } = await supabase
+          .from("properties")
+          .select("*")
+          .eq("id", tenant.property_id)
+          .single();
+        setProperty(prop || null);
+      } else {
+        setProperty(null);
+      }
       setLoading(false);
       return;
     }

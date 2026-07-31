@@ -1,6 +1,7 @@
 "use client";
 
-import { Plus, Phone, MessageCircle, IndianRupee, Pencil } from "lucide-react";
+import { Plus, Phone, MessageCircle, IndianRupee, Pencil, ChevronRight } from "lucide-react";
+import Link from "next/link";
 import { Chip, Button } from "@heroui/react";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useUserMode } from "@/lib/UserModeContext";
@@ -64,7 +65,11 @@ export default function RoomsPage() {
       <div className="flex items-center gap-5">
         <div className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-          <span className="text-[11px] text-slate-500">Occupied</span>
+          <span className="text-[11px] text-slate-500">Full</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
+          <span className="text-[11px] text-slate-500">Partial</span>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-full bg-slate-300" />
@@ -101,22 +106,27 @@ export default function RoomsPage() {
                     {floorRooms.map((room) => {
                       const capacity = capacityMap[room.type] || 1;
                       const roomBeds = beds.filter((b) => b.roomId === room.id);
+                      const occupiedCount = room.tenants.length;
                       const isVacant = room.status === "Vacant";
+                      const isPartial = !isVacant && occupiedCount < capacity;
                       const isHovered = hoveredRoom === room.id;
 
-                      const statusDotColor = isVacant ? "bg-slate-300" : "bg-emerald-500";
+                      const statusDotColor = isVacant ? "bg-slate-300" : isPartial ? "bg-rose-500" : "bg-emerald-500";
 
                       return (
                         <div
                           key={room.id}
+                          className="relative"
+                          onMouseEnter={() => setHoveredRoom(room.id)}
+                          onMouseLeave={() => setHoveredRoom(null)}
+                        >
+                        <div
                           className={`relative p-4 rounded-xl border transition-all duration-200 cursor-pointer group ${
                             isVacant
                               ? "border-dashed border-slate-300 bg-white/50 hover:border-indigo-300"
                               : "bg-white border-slate-200 shadow-sm hover:border-indigo-300 hover:shadow-md"
                           }`}
                           onClick={() => setSelectedRoom(room.id)}
-                          onMouseEnter={() => setHoveredRoom(room.id)}
-                          onMouseLeave={() => setHoveredRoom(null)}
                         >
                           {/* Room Number + Status Dot */}
                           <div className="flex justify-between items-start mb-3">
@@ -180,6 +190,34 @@ export default function RoomsPage() {
                           {isVacant && (
                             <p className="text-[11px] text-slate-400 italic mt-1">All beds available</p>
                           )}
+                        </div>
+
+                        {/* Tenant mini cards on hover */}
+                        {isHovered && room.tenantDetails.length > 0 && (
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 z-20 pb-2">
+                            <div className="bg-amber-50 border border-amber-200 rounded-xl p-2.5 shadow-xl min-w-[220px]">
+                              <div className="space-y-1.5">
+                                {room.tenantDetails.map((tenant) => (
+                                  <Link
+                                    key={tenant.id || tenant.name}
+                                    href={tenant.id ? `/tenants/${tenant.id}` : "#"}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-amber-100 transition-colors group/card"
+                                  >
+                                    <div className="w-9 h-9 rounded-full bg-amber-200 flex items-center justify-center text-xs font-bold text-amber-800 shrink-0">
+                                      {tenant.name.split(" ").map((n) => n[0]).join("")}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-medium text-amber-900 truncate">{tenant.name}</p>
+                                      <p className="text-[11px] text-amber-600">Bed {tenant.bedLabel}</p>
+                                    </div>
+                                    <ChevronRight size={14} className="text-amber-300 group-hover/card:text-amber-700 shrink-0" />
+                                  </Link>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        )}
                         </div>
                       );
                     })}
