@@ -156,18 +156,30 @@ export default function Dashboard() {
               </div>
             </div>
             {tenantData?.upiId ? (
-              <div className="p-4">
+              <div className="p-4 space-y-3">
                 <button
                   onClick={() => {
                     const month = new Date().toLocaleString("en-IN", { month: "long" });
                     const upiLink = `upi://pay?pa=${tenantData.upiId}&pn=${encodeURIComponent(tenantData.property || "PG")}&am=${tenantData.rent}&cu=INR&tn=Rent+${month}`;
-                    window.location.href = upiLink;
+                    window.open(upiLink, "_blank");
                   }}
                   className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
                 >
                   <IndianRupee size={15} />
                   Pay Rent via UPI
                 </button>
+                <div className="flex items-center justify-between p-2.5 bg-slate-50 rounded-lg">
+                  <div>
+                    <p className="text-[10px] text-slate-500 uppercase">UPI ID</p>
+                    <p className="text-sm font-medium text-slate-800">{tenantData.upiId}</p>
+                  </div>
+                  <button
+                    onClick={() => { navigator.clipboard.writeText(tenantData.upiId || ""); }}
+                    className="text-xs text-emerald-600 font-medium hover:text-emerald-700 px-2 py-1 bg-emerald-50 rounded"
+                  >
+                    Copy
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="px-4 py-3">
@@ -511,7 +523,7 @@ export default function Dashboard() {
       </section>
 
       {/* Floating Action Button */}
-      <div className="fixed bottom-8 right-8 flex flex-col items-end gap-2 z-50">
+      <div className="fixed bottom-5 right-5 sm:bottom-8 sm:right-8 flex flex-col items-end gap-2 z-50">
         {fabOpen && (
           <div className="flex flex-col gap-2 items-end mb-2 animate-in slide-in-from-bottom-2">
             <Link

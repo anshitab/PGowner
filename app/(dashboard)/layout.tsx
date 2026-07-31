@@ -7,7 +7,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { usePropertyContext } from "@/lib/PropertyContext";
 import { useUserMode } from "@/lib/UserModeContext";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 export default function DashboardLayout({
@@ -19,6 +19,7 @@ export default function DashboardLayout({
   const { property, loading: propLoading } = usePropertyContext();
   const { mode } = useUserMode();
   const router = useRouter();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Auto-link tenant by email if not yet linked by user_id
   useEffect(() => {
@@ -70,10 +71,10 @@ export default function DashboardLayout({
 
   return (
     <>
-      <Sidebar />
-      <div className="ml-64 min-h-screen flex flex-col">
-        <TopBar />
-        <main className="flex-1 p-6 page-enter">{children}</main>
+      <Sidebar mobileOpen={sidebarOpen} onMobileClose={() => setSidebarOpen(false)} />
+      <div className="md:ml-64 min-h-screen flex flex-col">
+        <TopBar onMenuClick={() => setSidebarOpen(true)} />
+        <main className="flex-1 p-4 sm:p-6 page-enter">{children}</main>
       </div>
       <CommandPalette />
     </>

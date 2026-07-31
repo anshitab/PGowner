@@ -17,6 +17,7 @@ import {
   Home,
   FileText,
   HelpCircle,
+  X,
 } from "lucide-react";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useUserMode } from "@/lib/UserModeContext";
@@ -57,7 +58,12 @@ const icons: Record<string, React.ComponentType<{ size?: number }>> = {
   HelpCircle,
 };
 
-export default function Sidebar() {
+interface SidebarProps {
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
+}
+
+export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const { t } = useLanguage();
   const { mode } = useUserMode();
@@ -68,14 +74,10 @@ export default function Sidebar() {
 
   const isTenant = mode === "tenant";
 
-  return (
-    <aside className={`fixed left-0 top-0 h-screen w-64 flex flex-col z-50 ${
-      isTenant
-        ? "bg-gradient-to-b from-slate-900 via-slate-900 to-emerald-950"
-        : "bg-[var(--sidebar-bg)]"
-    } text-[var(--sidebar-text)]`}>
-      <div className="p-6 border-b border-white/10">
-        <Link href="/dashboard" className="flex items-center gap-2.5">
+  const sidebarContent = (
+    <>
+      <div className="p-6 border-b border-white/10 flex items-center justify-between">
+        <Link href="/dashboard" className="flex items-center gap-2.5" onClick={onMobileClose}>
           <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
             isTenant ? "bg-emerald-600" : "bg-blue-600"
           }`}>
@@ -88,6 +90,11 @@ export default function Sidebar() {
             </span>
           )}
         </Link>
+        {onMobileClose && (
+          <button onClick={onMobileClose} className="md:hidden p-1.5 text-slate-400 hover:text-white">
+            <X size={20} />
+          </button>
+        )}
       </div>
 
       <nav className="flex-1 py-4 overflow-y-auto">
@@ -102,6 +109,7 @@ export default function Sidebar() {
               <li key={item.key}>
                 <Link
                   href={item.href}
+                  onClick={onMobileClose}
                   className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 text-sm font-medium ${
                     isActive
                       ? isTenant
@@ -130,6 +138,7 @@ export default function Sidebar() {
         </p>
         <Link
           href="/settings"
+          onClick={onMobileClose}
           className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 text-sm font-medium ${
             pathname === "/settings"
               ? isTenant ? "bg-emerald-500/15 text-emerald-100" : "bg-white/10 text-white"
@@ -140,6 +149,33 @@ export default function Sidebar() {
           <span>{t("nav.settings")}</span>
         </Link>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Desktop sidebar */}
+      <aside className={`hidden md:flex fixed left-0 top-0 h-screen w-64 flex-col z-50 ${
+        isTenant
+          ? "bg-gradient-to-b from-slate-900 via-slate-900 to-emerald-950"
+          : "bg-[var(--sidebar-bg)]"
+      } text-[var(--sidebar-text)]`}>
+        {sidebarContent}
+      </aside>
+
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div className="md:hidden fixed inset-0 z-50 flex">
+          <div className="fixed inset-0 bg-black/50" onClick={onMobileClose} />
+          <aside className={`relative w-72 max-w-[80vw] h-full flex flex-col ${
+            isTenant
+              ? "bg-gradient-to-b from-slate-900 via-slate-900 to-emerald-950"
+              : "bg-[var(--sidebar-bg)]"
+          } text-[var(--sidebar-text)]`}>
+            {sidebarContent}
+          </aside>
+        </div>
+      )}
+    </>
   );
 }

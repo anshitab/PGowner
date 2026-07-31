@@ -63,8 +63,8 @@ export default function SettingsPage() {
         )}
       </div>
 
-      <div className="flex gap-6">
-        <div className="w-56 space-y-0.5">
+      <div className="flex flex-col md:flex-row gap-6">
+        <div className="w-full md:w-56 flex md:flex-col gap-1 overflow-x-auto md:overflow-visible pb-2 md:pb-0">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
