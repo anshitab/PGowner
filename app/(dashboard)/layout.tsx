@@ -6,8 +6,8 @@ import CommandPalette from "@/components/CommandPalette";
 import { useAuth } from "@/lib/AuthContext";
 import { usePropertyContext } from "@/lib/PropertyContext";
 import { useUserMode } from "@/lib/UserModeContext";
-import { useRouter, usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 
 export default function DashboardLayout({
@@ -19,52 +19,37 @@ export default function DashboardLayout({
   const { property, loading: propLoading } = usePropertyContext();
   const { mode } = useUserMode();
   const router = useRouter();
-  const pathname = usePathname();
-  const [tenantLinked, setTenantLinked] = useState<boolean | null>(null);
 
+  // Auto-link tenant by email if not yet linked by user_id
   useEffect(() => {
-    async function checkTenantLink() {
-      if (mode !== "tenant" || !user) {
-        setTenantLinked(true);
-        return;
-      }
+    async function autoLinkTenant() {
+      if (mode !== "tenant" || !user?.email) return;
 
-      // Check if tenant record is linked by user_id
       const { data: byUserId } = await supabase
         .from("tenants")
         .select("id")
         .eq("user_id", user.id)
         .maybeSingle();
 
-      if (byUserId) {
-        setTenantLinked(true);
-        return;
-      }
+      if (byUserId) return;
 
-      // Fallback: try email match and auto-link
-      if (user.email) {
-        const { data: byEmail } = await supabase
+      const { data: byEmail } = await supabase
+        .from("tenants")
+        .select("id")
+        .eq("email", user.email)
+        .is("user_id", null)
+        .maybeSingle();
+
+      if (byEmail) {
+        await supabase
           .from("tenants")
-          .select("id")
-          .eq("email", user.email)
-          .is("user_id", null)
-          .maybeSingle();
-
-        if (byEmail) {
-          await supabase
-            .from("tenants")
-            .update({ user_id: user.id })
-            .eq("id", byEmail.id);
-          setTenantLinked(true);
-          return;
-        }
+          .update({ user_id: user.id })
+          .eq("id", byEmail.id);
       }
-
-      setTenantLinked(false);
     }
 
     if (!authLoading && isAuthenticated) {
-      checkTenantLink();
+      autoLinkTenant();
     }
   }, [authLoading, isAuthenticated, mode, user]);
 
@@ -76,17 +61,12 @@ export default function DashboardLayout({
     }
     if (mode === "owner" && !property) {
       router.replace("/setup");
-      return;
     }
-    if (mode === "tenant" && tenantLinked === false && pathname !== "/tenant-onboarding") {
-      router.replace("/tenant-onboarding");
-    }
-  }, [isAuthenticated, authLoading, propLoading, property, mode, router, tenantLinked, pathname]);
+  }, [isAuthenticated, authLoading, propLoading, property, mode, router]);
 
   if (authLoading || propLoading) return null;
   if (!isAuthenticated) return null;
   if (mode === "owner" && !property) return null;
-  if (mode === "tenant" && tenantLinked === null) return null;
 
   return (
     <>

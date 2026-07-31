@@ -11,7 +11,6 @@ import {
   CreditCard,
   MessageSquareWarning,
   FileBarChart,
-  Bell,
   Settings,
   Megaphone,
   Wallet,
@@ -35,7 +34,7 @@ const allNavItems: NavItem[] = [
   { key: "nav.properties", icon: "Building2", href: "/properties", ownerOnly: true },
   { key: "nav.rooms", icon: "DoorOpen", href: "/rooms", ownerOnly: true },
   { key: "nav.tenants", icon: "Users", href: "/tenants", ownerOnly: true },
-  { key: "nav.rent", icon: "IndianRupee", href: "/rent" },
+  { key: "nav.rent", icon: "IndianRupee", href: "/rent", ownerOnly: true },
   { key: "nav.payments", icon: "CreditCard", href: "/payments", ownerOnly: true },
   { key: "nav.complaints", icon: "MessageSquareWarning", href: "/complaints" },
   { key: "nav.myRoom", icon: "Home", href: "/my-room", tenantOnly: true },
@@ -68,7 +67,6 @@ export default function Sidebar() {
     : allNavItems.filter((item) => !item.ownerOnly);
 
   const isTenant = mode === "tenant";
-  const accentColor = isTenant ? "emerald" : "blue";
 
   return (
     <aside className={`fixed left-0 top-0 h-screen w-64 flex flex-col z-50 ${
@@ -130,22 +128,6 @@ export default function Sidebar() {
         <p className="px-4 mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
           {t("nav.system")}
         </p>
-        {mode === "owner" && (
-          <Link
-            href="/notifications"
-            className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 text-sm font-medium ${
-              pathname === "/notifications"
-                ? "bg-white/10 text-white"
-                : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
-            }`}
-          >
-            <Bell size={18} />
-            <span>{t("nav.notifications")}</span>
-            <span className={`ml-auto w-5 h-5 rounded-full text-[10px] font-bold text-white flex items-center justify-center bg-${accentColor}-600`}>
-              3
-            </span>
-          </Link>
-        )}
         <Link
           href="/settings"
           className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 text-sm font-medium ${

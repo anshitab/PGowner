@@ -169,6 +169,7 @@ CREATE TABLE settings (
   deposit_multiplier int DEFAULT 2,
   checkout_deductions jsonb DEFAULT '{"cleaningFee": 2000, "noticePenaltyPerDay": 500}',
   notifications jsonb DEFAULT '{"paymentReceived": true, "rentOverdue": true, "newComplaint": true, "visitorCheckIn": false, "monthlyReports": true}',
+  upi_id text DEFAULT '',
   created_at timestamptz DEFAULT now()
 );
 

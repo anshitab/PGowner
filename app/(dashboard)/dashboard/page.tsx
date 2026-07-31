@@ -26,8 +26,20 @@ export default function Dashboard() {
   const { property } = usePropertyContext();
   const [fabOpen, setFabOpen] = useState(false);
   const [recentPayments, setRecentPayments] = useState<Array<{ id: string; tenant: string; room: string; amount: number }>>([]);
-  const [tenantData, setTenantData] = useState<{ name?: string; phone?: string; email?: string; room?: string; rent?: number; joinDate?: string; property?: string } | null>(null);
+  const [tenantData, setTenantData] = useState<{ name?: string; phone?: string; email?: string; room?: string; rent?: number; joinDate?: string; property?: string; upiId?: string } | null>(null);
   const [myPayments, setMyPayments] = useState<Array<{ id: string; amount: number; date: string; method: string; verified: boolean }>>([]);
+  const [checkoutDate, setCheckoutDate] = useState("");
+  const [checkoutSubmitted, setCheckoutSubmitted] = useState(false);
+
+  const handleCheckoutRequest = async () => {
+    if (!checkoutDate || !user?.id) return;
+    await fetch("/api/checkout-request", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: user.id, checkoutDate }),
+    });
+    setCheckoutSubmitted(true);
+  };
 
   // Fetch recent payments for owner dashboard
   useEffect(() => {
@@ -55,63 +67,38 @@ export default function Dashboard() {
     fetchRecentPayments();
   }, [mode, property]);
 
-  // Fetch tenant-specific data for tenant dashboard
+  // Fetch tenant-specific data via API (bypasses RLS)
   useEffect(() => {
     async function fetchTenantData() {
       if (mode !== "tenant" || !user?.id) return;
 
-      // Try by user_id first, then fallback to email match
-      let { data: tenant } = await supabase
-        .from("tenants")
-        .select("*, rooms(number, rent), properties(name)")
-        .eq("user_id", user.id)
-        .maybeSingle();
+      const params = new URLSearchParams({ userId: user.id });
+      if (user.email) params.set("email", user.email);
 
-      if (!tenant && user.email) {
-        const { data: emailMatch } = await supabase
-          .from("tenants")
-          .select("*, rooms(number, rent), properties(name)")
-          .eq("email", user.email)
-          .is("user_id", null)
-          .maybeSingle();
+      const res = await fetch(`/api/tenant-data?${params}`);
+      if (!res.ok) return;
+      const data = await res.json();
 
-        if (emailMatch) {
-          // Link the tenant record to this user
-          await supabase
-            .from("tenants")
-            .update({ user_id: user.id })
-            .eq("id", emailMatch.id);
-          tenant = emailMatch;
-        }
-      }
-
-      if (tenant) {
+      if (data.tenant) {
         setTenantData({
-          name: tenant.name,
-          phone: tenant.phone,
-          email: tenant.email,
-          room: (tenant.rooms as { number: string } | null)?.number || "",
-          rent: (tenant.rooms as { rent: number } | null)?.rent || 0,
-          joinDate: tenant.join_date || tenant.created_at,
-          property: (tenant.properties as { name: string } | null)?.name || "",
+          name: data.tenant.name,
+          phone: data.tenant.phone,
+          email: data.tenant.email,
+          room: data.tenant.room,
+          rent: data.tenant.rent,
+          joinDate: data.tenant.joinDate,
+          property: data.tenant.property,
+          upiId: data.upiId || "",
         });
       }
 
-      if (!tenant) return;
-      const { data: payments } = await supabase
-        .from("payments")
-        .select("*")
-        .eq("tenant_id", tenant.id)
-        .order("created_at", { ascending: false })
-        .limit(5);
-
-      if (payments) {
-        setMyPayments(payments.map((p) => ({
+      if (data.payments) {
+        setMyPayments(data.payments.map((p: { id: string; amount: number; date: string; method: string; verified: boolean }) => ({
           id: p.id,
-          amount: p.amount || 0,
-          date: p.created_at || p.date || "",
-          method: p.method || "UPI",
-          verified: p.verified ?? false,
+          amount: p.amount,
+          date: p.date || "",
+          method: p.method,
+          verified: p.verified,
         })));
       }
     }
@@ -168,16 +155,25 @@ export default function Dashboard() {
                 <span>Due: 1st of month</span>
               </div>
             </div>
-            <Card.Content className="p-4">
-              <Link
-                href="/rent"
-                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
-              >
-                <IndianRupee size={15} />
-                Pay Rent
-                <ArrowRight size={14} className="opacity-70" />
-              </Link>
-            </Card.Content>
+            {tenantData?.upiId ? (
+              <div className="p-4">
+                <button
+                  onClick={() => {
+                    const month = new Date().toLocaleString("en-IN", { month: "long" });
+                    const upiLink = `upi://pay?pa=${tenantData.upiId}&pn=${encodeURIComponent(tenantData.property || "PG")}&am=${tenantData.rent}&cu=INR&tn=Rent+${month}`;
+                    window.location.href = upiLink;
+                  }}
+                  className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
+                >
+                  <IndianRupee size={15} />
+                  Pay Rent via UPI
+                </button>
+              </div>
+            ) : (
+              <div className="px-4 py-3">
+                <p className="text-xs text-slate-400 text-center">UPI payment not set up by owner</p>
+              </div>
+            )}
           </Card>
         </div>
 
@@ -307,22 +303,49 @@ export default function Dashboard() {
         <Card>
           <Card.Header className="px-5 pt-5 pb-0">
             <Card.Title className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-              <FileText size={15} className="text-slate-500" />
-              PG Rules &amp; Policies
+              <DoorOpen size={15} className="text-red-500" />
+              Checkout Request
             </Card.Title>
           </Card.Header>
           <Card.Content className="p-5">
-            {pgData.rules.length > 0 ? (
-              <ul className="space-y-2 text-sm text-slate-600">
-                {pgData.rules.map((rule, i) => (
-                  <li key={i} className="flex items-start gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 mt-1.5 shrink-0" />
-                    {rule}
-                  </li>
-                ))}
-              </ul>
+            {checkoutSubmitted ? (
+              <div className="text-center py-4">
+                <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-3">
+                  <AlertCircle size={18} className="text-emerald-600" />
+                </div>
+                <p className="text-sm font-medium text-slate-800">Checkout request submitted</p>
+                <p className="text-xs text-slate-500 mt-1">Your PG owner will review it shortly</p>
+              </div>
             ) : (
-              <p className="text-sm text-slate-500 text-center py-4">No rules defined yet</p>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="p-2.5 bg-slate-50 rounded-lg">
+                    <p className="text-[10px] text-slate-500 uppercase">Room</p>
+                    <p className="font-medium text-slate-800">{tenantData?.room || "—"}</p>
+                  </div>
+                  <div className="p-2.5 bg-slate-50 rounded-lg">
+                    <p className="text-[10px] text-slate-500 uppercase">Monthly Rent</p>
+                    <p className="font-medium text-slate-800">{tenantData?.rent ? `₹${tenantData.rent.toLocaleString("en-IN")}` : "—"}</p>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1.5">Preferred Checkout Date</label>
+                  <input
+                    type="date"
+                    value={checkoutDate}
+                    onChange={(e) => setCheckoutDate(e.target.value)}
+                    min={new Date().toISOString().split("T")[0]}
+                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                  />
+                </div>
+                <button
+                  onClick={handleCheckoutRequest}
+                  disabled={!checkoutDate}
+                  className="w-full py-2.5 bg-red-600 hover:bg-red-700 disabled:bg-slate-300 text-white text-sm font-semibold rounded-xl transition-colors"
+                >
+                  Submit Checkout Request
+                </button>
+              </div>
             )}
           </Card.Content>
         </Card>

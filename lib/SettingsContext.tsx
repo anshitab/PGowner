@@ -22,6 +22,7 @@ export interface PGSettings {
     visitorCheckIn: boolean;
     monthlyReports: boolean;
   };
+  upiId: string;
 }
 
 const DEFAULT_SETTINGS: PGSettings = {
@@ -42,6 +43,7 @@ const DEFAULT_SETTINGS: PGSettings = {
     visitorCheckIn: false,
     monthlyReports: true,
   },
+  upiId: "",
 };
 
 interface SettingsContextType {
@@ -92,6 +94,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
           depositMultiplier: data.deposit_multiplier ?? DEFAULT_SETTINGS.depositMultiplier,
           checkoutDeductions: data.checkout_deductions ?? DEFAULT_SETTINGS.checkoutDeductions,
           notifications: data.notifications ?? DEFAULT_SETTINGS.notifications,
+          upiId: data.upi_id ?? DEFAULT_SETTINGS.upiId,
         });
       }
       setLoading(false);
@@ -117,6 +120,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       deposit_multiplier: newSettings.depositMultiplier,
       checkout_deductions: newSettings.checkoutDeductions,
       notifications: newSettings.notifications,
+      upi_id: newSettings.upiId,
     };
 
     if (settingsId) {

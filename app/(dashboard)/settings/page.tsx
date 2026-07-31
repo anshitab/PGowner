@@ -1,8 +1,8 @@
 "use client";
 
-import { User, Bell, Shield, CreditCard, ScrollText, Plus, Trash2, GripVertical } from "lucide-react";
+import { User, Shield, ScrollText, Plus, Trash2, GripVertical } from "lucide-react";
 import { useState } from "react";
-import { Card, Button, Switch, Avatar, AvatarFallback, Chip } from "@heroui/react";
+import { Card, Button, Avatar, AvatarFallback } from "@heroui/react";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useUserMode } from "@/lib/UserModeContext";
 import { useAuth } from "@/lib/AuthContext";
@@ -10,10 +10,8 @@ import { useSettings } from "@/lib/SettingsContext";
 
 const allTabs = [
   { id: "profile", key: "settings.profile", icon: User },
-  { id: "notifications", key: "settings.notifications", icon: Bell },
   { id: "security", key: "settings.security", icon: Shield },
   { id: "pgRules", key: "PG Rules", icon: ScrollText, ownerOnly: true },
-  { id: "billing", key: "settings.billing", icon: CreditCard, ownerOnly: true },
 ];
 
 export default function SettingsPage() {
@@ -123,42 +121,6 @@ export default function SettingsPage() {
               </div>
             )}
 
-            {activeTab === "notifications" && (
-              <div className="space-y-6">
-                <h3 className="text-base font-semibold text-slate-900">{t("settings.notificationPreferences")}</h3>
-                <div className="space-y-1">
-                  {([
-                    { key: "paymentReceived" as const, label: t("settings.paymentReceived"), desc: t("settings.paymentReceivedDesc") },
-                    { key: "rentOverdue" as const, label: t("settings.rentOverdue"), desc: t("settings.rentOverdueDesc") },
-                    { key: "newComplaint" as const, label: t("settings.newComplaint"), desc: t("settings.newComplaintDesc") },
-                    { key: "visitorCheckIn" as const, label: t("settings.visitorCheckIn"), desc: t("settings.visitorCheckInDesc") },
-                    { key: "monthlyReports" as const, label: t("settings.monthlyReports"), desc: t("settings.monthlyReportsDesc") },
-                  ]).map((item) => (
-                    <div key={item.key} className="flex items-center justify-between py-4 border-b border-slate-50 last:border-0">
-                      <div>
-                        <p className="text-sm font-medium text-slate-800">{item.label}</p>
-                        <p className="text-xs text-slate-500 mt-0.5">{item.desc}</p>
-                      </div>
-                      <Switch
-                        isSelected={settings.notifications[item.key]}
-                        onChange={(checked) => {
-                          updateSettings({
-                            notifications: { ...settings.notifications, [item.key]: checked },
-                          });
-                          showSaved();
-                        }}
-                        size="sm"
-                      >
-                        <Switch.Control>
-                          <Switch.Thumb />
-                        </Switch.Control>
-                      </Switch>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {activeTab === "security" && (
               <div className="space-y-6">
                 <h3 className="text-base font-semibold text-slate-900">{t("settings.securitySettings")}</h3>
@@ -178,6 +140,7 @@ export default function SettingsPage() {
                   <p className="text-xs text-slate-500 mb-3">{t("settings.twoFactorDesc")}</p>
                   <Button variant="outline" size="sm">{t("settings.enable2FA")}</Button>
                 </div>
+                <Button variant="primary" size="sm" onClick={showSaved}>{t("common.save")}</Button>
               </div>
             )}
 
@@ -185,19 +148,19 @@ export default function SettingsPage() {
               <div className="space-y-6">
                 <h3 className="text-base font-semibold text-slate-900">PG Rules & Configuration</h3>
 
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1.5">UPI ID for Rent Collection</label>
+                  <input
+                    type="text"
+                    value={settings.upiId}
+                    onChange={(e) => { updateSettings({ upiId: e.target.value }); showSaved(); }}
+                    placeholder="yourname@upi"
+                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  />
+                  <p className="text-[11px] text-slate-400 mt-1">Tenants will use this to pay rent via UPI apps</p>
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1.5">Rent Due Day</label>
-                    <select
-                      value={settings.rentDueDay}
-                      onChange={(e) => { updateSettings({ rentDueDay: Number(e.target.value) }); showSaved(); }}
-                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                    >
-                      {Array.from({ length: 28 }, (_, i) => i + 1).map((d) => (
-                        <option key={d} value={d}>{d}{d === 1 ? "st" : d === 2 ? "nd" : d === 3 ? "rd" : "th"} of month</option>
-                      ))}
-                    </select>
-                  </div>
                   <div>
                     <label className="block text-xs font-medium text-slate-600 mb-1.5">Late Fee Grace Period</label>
                     <select
@@ -229,24 +192,6 @@ export default function SettingsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1.5">Visitor Hours Start</label>
-                    <input
-                      type="time"
-                      value={settings.visitorHours.start}
-                      onChange={(e) => { updateSettings({ visitorHours: { ...settings.visitorHours, start: e.target.value } }); showSaved(); }}
-                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1.5">Visitor Hours End</label>
-                    <input
-                      type="time"
-                      value={settings.visitorHours.end}
-                      onChange={(e) => { updateSettings({ visitorHours: { ...settings.visitorHours, end: e.target.value } }); showSaved(); }}
-                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                    />
-                  </div>
-                  <div>
                     <label className="block text-xs font-medium text-slate-600 mb-1.5">Security Deposit (x Monthly Rent)</label>
                     <select
                       value={settings.depositMultiplier}
@@ -257,15 +202,6 @@ export default function SettingsPage() {
                         <option key={m} value={m}>{m} month{m > 1 ? "s" : ""}</option>
                       ))}
                     </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1.5">Cleaning Fee on Checkout (₹)</label>
-                    <input
-                      type="number"
-                      value={settings.checkoutDeductions.cleaningFee}
-                      onChange={(e) => { updateSettings({ checkoutDeductions: { ...settings.checkoutDeductions, cleaningFee: Number(e.target.value) } }); showSaved(); }}
-                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                    />
                   </div>
                 </div>
 
@@ -303,30 +239,10 @@ export default function SettingsPage() {
                     </Button>
                   </div>
                 </div>
+                <Button variant="primary" size="sm" onClick={showSaved}>{t("common.save")}</Button>
               </div>
             )}
 
-            {activeTab === "billing" && (
-              <div className="space-y-6">
-                <h3 className="text-base font-semibold text-slate-900">{t("settings.billingPlan")}</h3>
-                <div className="p-5 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <p className="text-sm font-bold text-blue-900">{t("settings.proPlan")}</p>
-                        <Chip size="sm" variant="soft" color="accent">{t("status.active")}</Chip>
-                      </div>
-                      <p className="text-xs text-blue-600">{t("settings.proPlanDesc")}</p>
-                    </div>
-                    <span className="text-2xl font-bold text-blue-900">
-                      ₹2,999<span className="text-sm font-normal text-blue-600">/mo</span>
-                    </span>
-                  </div>
-                </div>
-                <p className="text-xs text-slate-500">{t("settings.nextBilling")}</p>
-                <Button variant="outline" size="sm">{t("settings.manageSubscription")}</Button>
-              </div>
-            )}
 
           </Card.Content>
         </Card>
