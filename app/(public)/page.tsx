@@ -1,17 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Building2,
   BedDouble,
   ArrowRight,
-  CalendarCheck,
-  User,
-  Phone,
-  MessageSquare,
-  CheckCircle2,
-  X,
   MapPin,
   Train,
   IndianRupee,
@@ -22,9 +15,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
-import { useAuth } from "@/lib/AuthContext";
 import ImagePlaceholder from "@/components/ImagePlaceholder";
-import { supabase } from "@/lib/supabase";
 
 const LOCALITIES = [
   {
@@ -134,96 +125,7 @@ const TIPS = [
 
 export default function LandingPage() {
   const { t } = useLanguage();
-  const { isAuthenticated } = useAuth();
   const router = useRouter();
-
-  const [showVisitModal, setShowVisitModal] = useState(false);
-  const [pgFilter, setPgFilter] = useState<{ gender: string; area: string }>({ gender: "", area: "" });
-  const [pgResults, setPgResults] = useState<{ id: string; name: string; address: string; type: string }[]>([]);
-  const [loadingPgs, setLoadingPgs] = useState(false);
-  const [visitForm, setVisitForm] = useState({
-    name: "",
-    phone: "",
-    date: "",
-    message: "",
-    propertyId: "",
-    propertyName: "",
-    pgAddress: "",
-  });
-  const [visitSubmitted, setVisitSubmitted] = useState(false);
-  const [visitSubmitting, setVisitSubmitting] = useState(false);
-  const [visitError, setVisitError] = useState("");
-
-  useEffect(() => {
-    if (!pgFilter.gender && !pgFilter.area) {
-      setPgResults([]);
-      return;
-    }
-    const timer = setTimeout(async () => {
-      setLoadingPgs(true);
-      let query = supabase.from("properties").select("id, name, address, type").eq("verification_status", "verified");
-      if (pgFilter.gender) {
-        if (pgFilter.gender === "Co-ed") {
-          query = query.eq("type", "Co-ed PG");
-        } else {
-          query = query.in("type", [`${pgFilter.gender} PG`, "Co-ed PG"]);
-        }
-      }
-      if (pgFilter.area.trim()) {
-        query = query.ilike("address", `%${pgFilter.area.trim()}%`);
-      }
-      const { data } = await query.limit(20);
-      setPgResults(data || []);
-      setLoadingPgs(false);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [pgFilter.gender, pgFilter.area]);
-
-  const handleSelectPg = (pg: { id: string; name: string; address: string }) => {
-    setVisitForm({
-      ...visitForm,
-      propertyId: pg.id,
-      propertyName: pg.name,
-      pgAddress: pg.address || "",
-    });
-  };
-
-  const handleVisitSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setVisitError("");
-    if (!visitForm.propertyName) { setVisitError("Please select a PG"); return; }
-    if (!visitForm.name.trim()) { setVisitError("Please enter your name"); return; }
-    if (!visitForm.phone.trim()) { setVisitError("Please enter your phone number"); return; }
-    if (!visitForm.date) { setVisitError("Please select a visit date"); return; }
-
-    setVisitSubmitting(true);
-
-    const { error } = await supabase.from("visitors").insert({
-      property_id: visitForm.propertyId,
-      tenant_id: null,
-      name: visitForm.name.trim(),
-      phone: visitForm.phone.trim(),
-      purpose: "Looking for a room",
-      message: visitForm.message.trim() || null,
-      visit_date: visitForm.date,
-      status: "pending",
-    });
-
-    if (error) {
-      setVisitError("Something went wrong. Please try again.");
-    } else {
-      setVisitSubmitted(true);
-    }
-    setVisitSubmitting(false);
-  };
-
-  const resetVisitForm = () => {
-    setVisitForm({ name: "", phone: "", date: "", message: "", propertyId: "", propertyName: "", pgAddress: "" });
-    setPgFilter({ gender: "", area: "" });
-    setPgResults([]);
-    setVisitSubmitted(false);
-    setVisitError("");
-  };
 
 
 
@@ -239,11 +141,11 @@ export default function LandingPage() {
             <span className="text-lg font-bold text-slate-900">ProManage</span>
           </div>
           <button
-            onClick={() => { resetVisitForm(); setShowVisitModal(true); }}
+            onClick={() => router.push("/login?role=owner")}
             className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors flex items-center gap-2"
           >
-            <CalendarCheck size={14} />
-            Book a Visit
+            <Building2 size={14} />
+            Login
           </button>
         </div>
       </nav>
@@ -329,22 +231,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Visit CTA Banner */}
-      <section className="bg-gradient-to-r from-indigo-600 to-blue-600 py-10">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="text-white">
-            <h3 className="text-xl font-bold">Looking for a PG?</h3>
-            <p className="text-sm text-blue-100 mt-1">Book a visit to any registered PG and schedule your tour today.</p>
-          </div>
-          <button
-            onClick={() => { resetVisitForm(); setShowVisitModal(true); }}
-            className="px-6 py-3 bg-white text-blue-600 font-semibold text-sm rounded-lg hover:bg-blue-50 transition-colors flex items-center gap-2 shrink-0"
-          >
-            <CalendarCheck size={16} />
-            Book a Visit Now
-          </button>
-        </div>
-      </section>
 
 
       {/* Bangalore Localities Guide */}
@@ -637,224 +523,6 @@ export default function LandingPage() {
         </div>
       </footer>
 
-      {/* Visit Booking Modal */}
-      {showVisitModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowVisitModal(false)} />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 rounded-t-2xl flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">Book a PG Visit</h2>
-                <p className="text-xs text-slate-500 mt-0.5">Schedule a tour at any registered PG</p>
-              </div>
-              <button
-                onClick={() => setShowVisitModal(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="p-6">
-              {visitSubmitted ? (
-                <div className="text-center py-8">
-                  <div className="w-16 h-16 rounded-full bg-emerald-50 flex items-center justify-center mx-auto mb-4">
-                    <CheckCircle2 size={32} className="text-emerald-500" />
-                  </div>
-                  <h3 className="text-lg font-bold text-slate-900">Visit Booked!</h3>
-                  <p className="text-sm text-slate-600 mt-2">
-                    Your visit to <span className="font-medium">{visitForm.propertyName}</span> has been requested for{" "}
-                    <span className="font-medium">{new Date(visitForm.date).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}</span>.
-                  </p>
-                  <p className="text-xs text-slate-500 mt-3">The PG owner will confirm your visit shortly.</p>
-                  <button
-                    onClick={() => setShowVisitModal(false)}
-                    className="mt-6 px-6 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Done
-                  </button>
-                </div>
-              ) : (
-                <form onSubmit={handleVisitSubmit} className="space-y-5">
-                  {visitError && (
-                    <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{visitError}</p>
-                  )}
-
-                  {/* Filters: Gender + Area */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1.5">Looking for</label>
-                      <div className="flex gap-2">
-                        {["Boys", "Girls", "Co-ed"].map((g) => (
-                          <button
-                            key={g}
-                            type="button"
-                            onClick={() => setPgFilter({ ...pgFilter, gender: pgFilter.gender === g ? "" : g })}
-                            className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg border transition-colors ${
-                              pgFilter.gender === g
-                                ? "bg-blue-600 text-white border-blue-600"
-                                : "bg-slate-50 text-slate-600 border-slate-200 hover:border-blue-300"
-                            }`}
-                          >
-                            {g}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1.5">Area</label>
-                      <div className="relative">
-                        <MapPin size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                        <input
-                          type="text"
-                          placeholder="e.g., Koramangala"
-                          value={pgFilter.area}
-                          onChange={(e) => setPgFilter({ ...pgFilter, area: e.target.value })}
-                          className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* PG Results */}
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                      Select PG <span className="text-red-500">*</span>
-                    </label>
-                    {visitForm.propertyName ? (
-                      <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-3 py-2.5">
-                        <div>
-                          <p className="text-sm font-medium text-blue-900">{visitForm.propertyName}</p>
-                          {visitForm.pgAddress && <p className="text-xs text-blue-600 mt-0.5">{visitForm.pgAddress}</p>}
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setVisitForm({ ...visitForm, propertyId: "", propertyName: "", pgAddress: "" })}
-                          className="text-xs text-blue-600 hover:text-blue-700 font-medium"
-                        >
-                          Change
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="border border-slate-200 rounded-lg max-h-48 overflow-y-auto">
-                        {loadingPgs ? (
-                          <div className="px-3 py-4 text-center text-xs text-slate-500">Searching...</div>
-                        ) : !pgFilter.gender && !pgFilter.area ? (
-                          <div className="px-3 py-4 text-center text-xs text-slate-500">Select a gender or enter an area to see PGs</div>
-                        ) : pgResults.length === 0 ? (
-                          <div className="px-3 py-4 text-center text-xs text-slate-500">No PGs found matching your filters.</div>
-                        ) : (
-                          pgResults.map((pg) => (
-                            <button
-                              key={pg.id}
-                              type="button"
-                              onClick={() => handleSelectPg(pg)}
-                              className={`w-full text-left px-3 py-2.5 hover:bg-blue-50 border-b border-slate-100 last:border-0 transition-colors ${
-                                visitForm.propertyId === pg.id ? "bg-blue-50" : ""
-                              }`}
-                            >
-                              <div className="flex items-start gap-2">
-                                <Building2 size={13} className="text-blue-500 shrink-0 mt-0.5" />
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium text-slate-800">{pg.name}</p>
-                                  <div className="flex items-center gap-2 mt-0.5">
-                                    {pg.address && <p className="text-xs text-slate-500 truncate">{pg.address}</p>}
-                                    <span className="text-[10px] text-slate-400 shrink-0">{pg.type}</span>
-                                  </div>
-                                </div>
-                              </div>
-                            </button>
-                          ))
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Visitor Details */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                        Your Name <span className="text-red-500">*</span>
-                      </label>
-                      <div className="relative">
-                        <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                        <input
-                          type="text"
-                          placeholder="e.g., Ram Sharma"
-                          value={visitForm.name}
-                          onChange={(e) => setVisitForm({ ...visitForm, name: e.target.value })}
-                          className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                        Phone Number <span className="text-red-500">*</span>
-                      </label>
-                      <div className="relative">
-                        <Phone size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                        <input
-                          type="tel"
-                          placeholder="+91 XXXXX XXXXX"
-                          value={visitForm.phone}
-                          onChange={(e) => setVisitForm({ ...visitForm, phone: e.target.value })}
-                          className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                      Visit Date <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="date"
-                      min={new Date().toISOString().split("T")[0]}
-                      value={visitForm.date}
-                      onChange={(e) => setVisitForm({ ...visitForm, date: e.target.value })}
-                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                      Message <span className="text-xs text-slate-400 font-normal">(optional)</span>
-                    </label>
-                    <div className="relative">
-                      <MessageSquare size={14} className="absolute left-3 top-3 text-slate-400" />
-                      <textarea
-                        placeholder="Any specific requirements or questions..."
-                        rows={2}
-                        value={visitForm.message}
-                        onChange={(e) => setVisitForm({ ...visitForm, message: e.target.value })}
-                        className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-none"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex gap-3 pt-2">
-                    <button
-                      type="button"
-                      onClick={() => setShowVisitModal(false)}
-                      className="flex-1 px-4 py-2.5 text-sm font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={visitSubmitting}
-                      className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                    >
-                      {visitSubmitting ? "Submitting..." : "Book Visit"}
-                    </button>
-                  </div>
-                </form>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

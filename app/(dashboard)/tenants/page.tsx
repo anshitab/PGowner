@@ -206,7 +206,7 @@ export default function TenantsPage() {
       // Create auth account and send credentials email if email provided
       if (form.email.trim()) {
         const selectedRoom = rooms.find((r: Room) => r.id === form.roomId);
-        await fetch("/api/create-tenant-account", {
+        const emailRes = await fetch("/api/create-tenant-account", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -216,6 +216,10 @@ export default function TenantsPage() {
             roomNumber: selectedRoom?.number || "",
           }),
         });
+        const emailResult = await emailRes.json();
+        if (emailResult.emailSent === false) {
+          alert(`Tenant created but email failed: ${emailResult.emailError || "Unknown error"}`);
+        }
       }
 
       setForm({ name: "", phone: "", email: "", aadhaar: "", emergencyContact: "", homeAddress: "", roomId: "", rent: "", deposit: "", occupation: "", joinDate: new Date().toISOString().split("T")[0] });
@@ -244,17 +248,18 @@ export default function TenantsPage() {
   const activeCount = tenants.filter((tn) => tn.status === "Active").length;
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-8">
+      <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-slate-900">{t("tenants.title")}</h2>
-          <p className="text-sm text-slate-500 mt-1">
+          <h2 className="text-lg sm:text-xl font-bold text-slate-900">{t("tenants.title")}</h2>
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5 sm:mt-1">
             {tenants.length} {t("common.total")} &middot; {activeCount} {t("status.active").toLowerCase()}
           </p>
         </div>
         <Button variant="primary" size="sm" onPress={() => modalState.open()}>
           <Plus size={14} />
-          {t("tenants.addTenant")}
+          <span className="hidden sm:inline">{t("tenants.addTenant")}</span>
+          <span className="sm:hidden">Add</span>
         </Button>
       </div>
 
@@ -265,31 +270,31 @@ export default function TenantsPage() {
           placeholder={t("tenants.searchPlaceholder")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400"
+          className="w-full pl-9 pr-4 py-2 sm:py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400"
         />
       </div>
 
       {filtered.length === 0 ? (
         <EmptyState title={t("tenants.noTenants")} description={t("tenants.noTenantsDesc")} />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5">
           {filtered.map((tenant, i) => (
             <Link key={tenant.id} href={`/tenants/${tenant.id}`} className="block">
             <Card
               className="card-hover stagger-item cursor-pointer hover:ring-2 hover:ring-indigo-100"
               style={{ animationDelay: `${i * 60}ms` }}
             >
-              <Card.Content className="p-5">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-3">
+              <Card.Content className="p-3.5 sm:p-5">
+                <div className="flex items-start justify-between mb-2 sm:mb-3">
+                  <div className="flex items-center gap-2.5 sm:gap-3">
                     <Avatar size="sm">
                       <AvatarFallback>
                         {tenant.name.split(" ").map((n) => n[0]).join("")}
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <h4 className="text-sm font-semibold text-slate-900">{tenant.name}</h4>
-                      <p className="text-[11px] text-slate-500">
+                      <h4 className="text-xs sm:text-sm font-semibold text-slate-900">{tenant.name}</h4>
+                      <p className="text-[10px] sm:text-[11px] text-slate-500">
                         {t("common.room")} {tenant.rooms?.number || "—"}
                       </p>
                     </div>
@@ -298,22 +303,22 @@ export default function TenantsPage() {
                     {tenant.status === "Active" ? t("status.active") : t("status.inactive")}
                   </Chip>
                 </div>
-                <div className="space-y-2 mt-4">
-                  <div className="flex items-center gap-2 text-xs text-slate-600">
-                    <Phone size={12} className="text-slate-400" />
-                    {tenant.phone}
+                <div className="space-y-1.5 sm:space-y-2 mt-3 sm:mt-4">
+                  <div className="flex items-center gap-2 text-[11px] sm:text-xs text-slate-600">
+                    <Phone size={11} className="text-slate-400 shrink-0" />
+                    <span className="truncate">{tenant.phone}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-slate-600">
-                    <Mail size={12} className="text-slate-400" />
-                    {tenant.email}
+                  <div className="flex items-center gap-2 text-[11px] sm:text-xs text-slate-600">
+                    <Mail size={11} className="text-slate-400 shrink-0" />
+                    <span className="truncate">{tenant.email}</span>
                   </div>
                 </div>
-                <div className="flex justify-between items-center mt-4 pt-3 border-t border-slate-100">
-                  <span className="text-[11px] text-slate-500">
+                <div className="flex justify-between items-center mt-3 sm:mt-4 pt-2.5 sm:pt-3 border-t border-slate-100">
+                  <span className="text-[10px] sm:text-[11px] text-slate-500">
                     {t("tenants.joined")}{" "}
                     {new Date(tenant.join_date).toLocaleDateString("en-IN", { month: "short", year: "numeric" })}
                   </span>
-                  <span className="text-sm font-semibold text-slate-900">{`₹${tenant.rent.toLocaleString("en-IN")}`}/mo</span>
+                  <span className="text-xs sm:text-sm font-semibold text-slate-900">{`₹${tenant.rent.toLocaleString("en-IN")}`}/mo</span>
                 </div>
               </Card.Content>
             </Card>
@@ -341,7 +346,7 @@ export default function TenantsPage() {
                     {/* Personal Information */}
                     <fieldset className="space-y-4">
                       <legend className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Personal Information</legend>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                         <div>
                           <label className="block text-sm font-medium text-slate-700 mb-1">
                             {t("tenants.fullName")} <span className="text-red-500">*</span>
@@ -367,7 +372,7 @@ export default function TenantsPage() {
                           />
                         </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                         <div>
                           <label className="block text-sm font-medium text-slate-700 mb-1">{t("tenants.email")}</label>
                           <input
@@ -396,7 +401,7 @@ export default function TenantsPage() {
                     {/* Identity & Emergency */}
                     <fieldset className="space-y-4">
                       <legend className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Identity & Emergency</legend>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                         <div>
                           <label className="block text-sm font-medium text-slate-700 mb-1">
                             Aadhaar Number <span className="text-red-500">*</span>
@@ -456,7 +461,7 @@ export default function TenantsPage() {
                     {/* Room & Payment */}
                     <fieldset className="space-y-4">
                       <legend className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Room & Payment</legend>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                         <div>
                           <label className="block text-sm font-medium text-slate-700 mb-1">Sharing Type</label>
                           <select
@@ -492,7 +497,7 @@ export default function TenantsPage() {
                           </select>
                         </div>
                       </div>
-                      <div className="grid grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                         <div>
                           <label className="block text-sm font-medium text-slate-700 mb-1">{t("tenants.monthlyRent")}</label>
                           <input

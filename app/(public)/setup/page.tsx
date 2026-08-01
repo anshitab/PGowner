@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { usePGConfig, PGConfig, PGRoom, PGBed } from "@/lib/PGConfigContext";
 import { usePropertyContext } from "@/lib/PropertyContext";
 import ConfigReview from "@/components/setup/ConfigReview";
 import VerificationStep from "@/components/setup/VerificationStep";
-import { Building2, ImageIcon, X } from "lucide-react";
+import { Building2, Pencil } from "lucide-react";
 import { Button } from "@heroui/react";
 
 export default function SetupPage() {
@@ -25,8 +25,7 @@ export default function SetupPage() {
   const [rentDouble, setRentDouble] = useState("₹8,000");
   const [rentTriple, setRentTriple] = useState("₹6,000");
   const [amenities, setAmenities] = useState<string[]>(["Fan", "WiFi"]);
-  const [pgPhotos, setPgPhotos] = useState<{ file: File; preview: string }[]>([]);
-  const photoInputRef = useRef<HTMLInputElement>(null);
+  const [roomNumbers, setRoomNumbers] = useState<string[][]>([]);
 
   // Review state
   const [showReview, setShowReview] = useState(false);
@@ -38,21 +37,22 @@ export default function SetupPage() {
     }
   }, [isSetupComplete, propLoading, router]);
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    const newPhotos = files
-      .filter((f) => f.type.startsWith("image/"))
-      .slice(0, 6 - pgPhotos.length)
-      .map((file) => ({ file, preview: URL.createObjectURL(file) }));
-    setPgPhotos((prev) => [...prev, ...newPhotos].slice(0, 6));
-    if (photoInputRef.current) photoInputRef.current.value = "";
-  };
+  useEffect(() => {
+    const generated: string[][] = [];
+    for (let floor = 0; floor < floors; floor++) {
+      const floorRooms: string[] = [];
+      for (let r = 1; r <= roomsPerFloor; r++) {
+        floorRooms.push(floor === 0 ? `G-${String(r).padStart(2, "0")}` : `${floor}${String(r).padStart(2, "0")}`);
+      }
+      generated.push(floorRooms);
+    }
+    setRoomNumbers(generated);
+  }, [floors, roomsPerFloor]);
 
-  const removePhoto = (index: number) => {
-    setPgPhotos((prev) => {
-      const updated = [...prev];
-      URL.revokeObjectURL(updated[index].preview);
-      updated.splice(index, 1);
+  const updateRoomNumber = (floorIdx: number, roomIdx: number, value: string) => {
+    setRoomNumbers((prev) => {
+      const updated = prev.map((f) => [...f]);
+      updated[floorIdx][roomIdx] = value;
       return updated;
     });
   };
@@ -71,7 +71,7 @@ export default function SetupPage() {
 
     for (let floor = 0; floor < floors; floor++) {
       for (let r = 1; r <= roomsPerFloor; r++) {
-        const number = floor === 0 ? `G-${String(r).padStart(2, "0")}` : `${floor}${String(r).padStart(2, "0")}`;
+        const number = roomNumbers[floor]?.[r - 1] || (floor === 0 ? `G-${String(r).padStart(2, "0")}` : `${floor}${String(r).padStart(2, "0")}`);
 
         let roomType: "Single" | "Double" | "Triple";
         let rent: string;
@@ -201,46 +201,32 @@ export default function SetupPage() {
             />
           </div>
 
-          {/* PG Photos */}
+          {/* Room Numbers (Floor-wise) */}
           <div>
             <label className="block text-xs font-medium text-slate-700 mb-1.5 flex items-center gap-1.5">
-              <ImageIcon size={12} />
-              PG Photos <span className="text-slate-400 font-normal">(optional, max 6)</span>
+              <Pencil size={12} />
+              Room Numbers <span className="text-slate-400 font-normal">(edit floor-wise)</span>
             </label>
-            <input
-              ref={photoInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/jpg"
-              multiple
-              onChange={handlePhotoUpload}
-              className="hidden"
-            />
-            {pgPhotos.length > 0 && (
-              <div className="flex gap-2 overflow-x-auto pb-2 mb-2">
-                {pgPhotos.map((photo, i) => (
-                  <div key={i} className="relative shrink-0">
-                    <img src={photo.preview} alt={`PG photo ${i + 1}`} className="w-28 h-20 rounded-lg object-cover border border-slate-200" />
-                    <button
-                      type="button"
-                      onClick={() => removePhoto(i)}
-                      className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center"
-                    >
-                      <X size={10} />
-                    </button>
+            <div className="space-y-3">
+              {roomNumbers.map((floorRooms, floorIdx) => (
+                <div key={floorIdx} className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+                  <p className="text-[11px] font-medium text-slate-500 mb-2">
+                    {floorIdx === 0 ? "Ground Floor" : `Floor ${floorIdx}`}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {floorRooms.map((roomNum, roomIdx) => (
+                      <input
+                        key={roomIdx}
+                        type="text"
+                        value={roomNum}
+                        onChange={(e) => updateRoomNumber(floorIdx, roomIdx, e.target.value)}
+                        className="w-20 px-2 py-1.5 bg-white border border-slate-200 rounded-md text-xs text-center focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300"
+                      />
+                    ))}
                   </div>
-                ))}
-              </div>
-            )}
-            {pgPhotos.length < 6 && (
-              <button
-                type="button"
-                onClick={() => photoInputRef.current?.click()}
-                className="w-full border-2 border-dashed border-slate-300 rounded-lg py-4 text-center hover:border-indigo-400 hover:bg-indigo-50/30 transition-colors"
-              >
-                <ImageIcon size={20} className="mx-auto text-slate-400 mb-1" />
-                <p className="text-xs text-slate-500">Click to upload photos</p>
-              </button>
-            )}
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Type */}

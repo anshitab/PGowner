@@ -44,12 +44,12 @@ export default function RoomsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-slate-900">{t("rooms.title")}</h2>
-          <p className="text-sm text-slate-500 mt-1">
+          <h2 className="text-lg sm:text-xl font-bold text-slate-900">{t("rooms.title")}</h2>
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5 sm:mt-1">
             {totalRooms} total &middot;{" "}
             <span className="text-blue-600 font-medium">{occupiedCount} occupied</span> &middot;{" "}
             <span className="text-amber-600 font-medium">{vacantCount} vacant</span>
@@ -57,23 +57,24 @@ export default function RoomsPage() {
         </div>
         <Button variant="primary" size="sm">
           <Plus size={14} />
-          {t("rooms.addRoom")}
+          <span className="hidden sm:inline">{t("rooms.addRoom")}</span>
+          <span className="sm:hidden">Add</span>
         </Button>
       </div>
 
       {/* Legend */}
-      <div className="flex items-center gap-5">
+      <div className="flex items-center gap-3 sm:gap-5">
         <div className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-          <span className="text-[11px] text-slate-500">Full</span>
+          <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-500" />
+          <span className="text-[10px] sm:text-[11px] text-slate-500">Full</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
-          <span className="text-[11px] text-slate-500">Partial</span>
+          <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-rose-500" />
+          <span className="text-[10px] sm:text-[11px] text-slate-500">Partial</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-slate-300" />
-          <span className="text-[11px] text-slate-500">Vacant</span>
+          <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-slate-300" />
+          <span className="text-[10px] sm:text-[11px] text-slate-500">Vacant</span>
         </div>
       </div>
 
@@ -84,25 +85,25 @@ export default function RoomsPage() {
           <p className="text-sm text-slate-500">Add rooms to your property to get started</p>
         </div>
       ) : (
-        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6">
-          <div className="space-y-10">
+        <div className="bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl p-3 sm:p-6">
+          <div className="space-y-6 sm:space-y-10">
             {floors.map((floor) => {
               const floorRooms = rooms.filter((r) => r.floor === floor);
               if (floorRooms.length === 0) return null;
 
               return (
                 <div key={floor}>
-                  <div className="flex items-center gap-3 mb-4">
-                    <span className="text-[11px] font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                  <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+                    <span className="text-[10px] sm:text-[11px] font-bold text-indigo-600 bg-indigo-50 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full uppercase tracking-wider">
                       {floorLabels[floor]}
                     </span>
                     <div className="h-[1px] flex-1 bg-slate-200" />
-                    <span className="text-[10px] text-slate-400">
+                    <span className="text-[9px] sm:text-[10px] text-slate-400">
                       {floorRooms.filter((r) => r.status === "Occupied").length}/{floorRooms.length} occupied
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4">
                     {floorRooms.map((room) => {
                       const capacity = capacityMap[room.type] || 1;
                       const roomBeds = beds.filter((b) => b.roomId === room.id);
@@ -121,7 +122,7 @@ export default function RoomsPage() {
                           onMouseLeave={() => setHoveredRoom(null)}
                         >
                         <div
-                          className={`relative p-4 rounded-xl border transition-all duration-200 cursor-pointer group ${
+                          className={`relative p-3 sm:p-4 rounded-xl border transition-all duration-200 cursor-pointer group ${
                             isVacant
                               ? "border-dashed border-slate-300 bg-white/50 hover:border-indigo-300"
                               : "bg-white border-slate-200 shadow-sm hover:border-indigo-300 hover:shadow-md"
@@ -129,21 +130,21 @@ export default function RoomsPage() {
                           onClick={() => setSelectedRoom(room.id)}
                         >
                           {/* Room Number + Status Dot */}
-                          <div className="flex justify-between items-start mb-3">
-                            <span className={`text-lg font-bold ${isVacant ? "text-slate-400" : "text-slate-800"}`}>
+                          <div className="flex justify-between items-start mb-2 sm:mb-3">
+                            <span className={`text-base sm:text-lg font-bold ${isVacant ? "text-slate-400" : "text-slate-800"}`}>
                               {room.number}
                             </span>
-                            <span className={`w-2.5 h-2.5 rounded-full ${statusDotColor}`} />
+                            <span className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full ${statusDotColor}`} />
                           </div>
 
                           {/* Bed Dots */}
-                          <div className="flex items-center gap-1.5 mb-2">
+                          <div className="flex items-center gap-1 sm:gap-1.5 mb-1.5 sm:mb-2">
                             {Array.from({ length: capacity }).map((_, i) => {
                               const bed = roomBeds[i];
                               const isOccupied = bed?.status === "occupied";
                               return (
                                 <div key={i} className="flex flex-col items-center gap-0.5">
-                                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold ${
+                                  <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[8px] sm:text-[9px] font-bold ${
                                     isOccupied
                                       ? "bg-indigo-100 text-indigo-700 border border-indigo-200"
                                       : "bg-slate-100 text-slate-400 border border-dashed border-slate-300"
@@ -153,15 +154,15 @@ export default function RoomsPage() {
                                 </div>
                               );
                             })}
-                            <span className="text-[10px] text-slate-400 ml-1">
+                            <span className="text-[9px] sm:text-[10px] text-slate-400 ml-1">
                               {room.tenants.length}/{capacity}
                             </span>
                           </div>
 
                           {/* Room info */}
                           <div className="flex items-center justify-between">
-                            <span className="text-[10px] text-slate-500">{room.type}</span>
-                            <span className="text-[10px] font-medium text-slate-600">{`₹${room.rent.toLocaleString("en-IN")}`}</span>
+                            <span className="text-[9px] sm:text-[10px] text-slate-500">{room.type}</span>
+                            <span className="text-[9px] sm:text-[10px] font-medium text-slate-600">{`₹${room.rent.toLocaleString("en-IN")}`}</span>
                           </div>
 
                           {/* Quick Actions (visible on hover) */}

@@ -110,34 +110,34 @@ export default function Dashboard() {
     const myComplaints = complaints.filter((c) => c.tenant === user?.name && c.status !== "Resolved");
 
     return (
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         <div>
-          <h2 className="text-xl font-bold text-slate-900">
+          <h2 className="text-lg sm:text-xl font-bold text-slate-900">
             Welcome, {tenantData?.name || user?.name || "Tenant"}
           </h2>
-          <p className="text-sm text-slate-500 mt-1">{t("dashboard.welcomeTenant")}</p>
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5 sm:mt-1">{t("dashboard.welcomeTenant")}</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-5">
           <Card>
-            <Card.Content className="p-5">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2.5 bg-emerald-50 rounded-xl">
-                  <Home size={18} className="text-emerald-600" />
+            <Card.Content className="p-4 sm:p-5">
+              <div className="flex items-center gap-2.5 sm:gap-3 mb-3 sm:mb-4">
+                <div className="p-2 sm:p-2.5 bg-emerald-50 rounded-xl">
+                  <Home size={16} className="text-emerald-600" />
                 </div>
                 <div>
-                  <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Current Room</p>
-                  <p className="text-xl font-bold text-slate-900">{tenantData?.room || "—"}</p>
+                  <p className="text-[10px] sm:text-[11px] font-medium text-slate-500 uppercase tracking-wider">Current Room</p>
+                  <p className="text-lg sm:text-xl font-bold text-slate-900">{tenantData?.room || "—"}</p>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="p-2.5 bg-emerald-50/50 rounded-lg">
-                  <p className="text-[10px] text-slate-500 uppercase">Property</p>
-                  <p className="text-sm font-semibold text-slate-800">{tenantData?.property || "—"}</p>
+              <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                <div className="p-2 sm:p-2.5 bg-emerald-50/50 rounded-lg">
+                  <p className="text-[9px] sm:text-[10px] text-slate-500 uppercase">Property</p>
+                  <p className="text-xs sm:text-sm font-semibold text-slate-800 truncate">{tenantData?.property || "—"}</p>
                 </div>
-                <div className="p-2.5 bg-emerald-50/50 rounded-lg">
-                  <p className="text-[10px] text-slate-500 uppercase">Since</p>
-                  <p className="text-sm font-semibold text-slate-800">
+                <div className="p-2 sm:p-2.5 bg-emerald-50/50 rounded-lg">
+                  <p className="text-[9px] sm:text-[10px] text-slate-500 uppercase">Since</p>
+                  <p className="text-xs sm:text-sm font-semibold text-slate-800">
                     {tenantData?.joinDate ? new Date(tenantData.joinDate).toLocaleDateString("en-IN", { month: "short", year: "numeric" }) : "—"}
                   </p>
                 </div>
@@ -146,12 +146,12 @@ export default function Dashboard() {
           </Card>
 
           <Card className="overflow-hidden">
-            <div className="p-5 bg-gradient-to-br from-emerald-600 to-teal-700 text-white">
-              <p className="text-sm opacity-80 font-medium">Monthly Rent</p>
-              <p className="text-3xl font-bold mt-1">
+            <div className="p-4 sm:p-5 bg-gradient-to-br from-emerald-600 to-teal-700 text-white">
+              <p className="text-xs sm:text-sm opacity-80 font-medium">Monthly Rent</p>
+              <p className="text-2xl sm:text-3xl font-bold mt-0.5 sm:mt-1">
                 {tenantData?.rent ? `₹${tenantData.rent.toLocaleString("en-IN")}` : "—"}
               </p>
-              <div className="flex items-center gap-3 mt-3 text-xs opacity-80">
+              <div className="flex items-center gap-3 mt-2 sm:mt-3 text-[11px] sm:text-xs opacity-80">
                 <span>Due: 1st of month</span>
               </div>
             </div>
@@ -190,14 +190,14 @@ export default function Dashboard() {
         </div>
 
         <Card>
-          <Card.Header className="px-5 pt-5 pb-0">
-            <Card.Title className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-              <User size={15} className="text-emerald-500" />
+          <Card.Header className="px-4 sm:px-5 pt-4 sm:pt-5 pb-0">
+            <Card.Title className="text-xs sm:text-sm font-semibold text-slate-800 flex items-center gap-2">
+              <User size={14} className="text-emerald-500" />
               My Profile
             </Card.Title>
           </Card.Header>
-          <Card.Content className="p-5">
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <Card.Content className="p-3 sm:p-5">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
               <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
                 <User size={15} className="text-slate-400 shrink-0" />
                 <div className="min-w-0">
@@ -411,75 +411,81 @@ export default function Dashboard() {
 
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5 sm:space-y-8">
       {/* KPI Cards Grid */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-5 bg-white border border-slate-200 rounded-xl hover:border-indigo-200 transition-all card-hover">
-          <div className="flex justify-between items-start mb-3">
-            <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center">
-              <BedDouble size={20} className="text-indigo-600" />
+      <section className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+        <div className="p-3 sm:p-5 bg-white border border-slate-200 rounded-xl hover:border-indigo-200 transition-all card-hover">
+          <div className="flex justify-between items-start mb-2 sm:mb-3">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-slate-100 flex items-center justify-center">
+              <BedDouble size={16} className="sm:hidden text-indigo-600" />
+              <BedDouble size={20} className="hidden sm:block text-indigo-600" />
             </div>
           </div>
-          <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Total Rooms</p>
-          <p className="text-3xl font-bold text-slate-900 mt-1">{totalRooms}</p>
+          <p className="text-[10px] sm:text-[11px] font-medium text-slate-500 uppercase tracking-wider">Total Rooms</p>
+          <p className="text-xl sm:text-3xl font-bold text-slate-900 mt-0.5 sm:mt-1">{totalRooms}</p>
         </div>
 
-        <div className="p-5 bg-white border border-slate-200 rounded-xl hover:border-blue-200 transition-all card-hover">
-          <div className="flex justify-between items-start mb-3">
-            <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center">
-              <DoorOpen size={20} className="text-blue-600" />
+        <div className="p-3 sm:p-5 bg-white border border-slate-200 rounded-xl hover:border-blue-200 transition-all card-hover">
+          <div className="flex justify-between items-start mb-2 sm:mb-3">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-slate-100 flex items-center justify-center">
+              <DoorOpen size={16} className="sm:hidden text-blue-600" />
+              <DoorOpen size={20} className="hidden sm:block text-blue-600" />
             </div>
-            <div className="flex items-end gap-[2px] h-5">
+            <div className="hidden sm:flex items-end gap-[2px] h-5">
               <div className="bg-blue-400 w-1.5 h-1/2 rounded-t-sm" />
               <div className="bg-blue-500 w-1.5 h-3/4 rounded-t-sm" />
               <div className="bg-blue-500 w-1.5 h-2/3 rounded-t-sm" />
               <div className="bg-blue-600 w-1.5 h-full rounded-t-sm" />
             </div>
           </div>
-          <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Occupied</p>
-          <p className="text-3xl font-bold text-slate-900 mt-1">{occupiedRooms}</p>
+          <p className="text-[10px] sm:text-[11px] font-medium text-slate-500 uppercase tracking-wider">Occupied</p>
+          <p className="text-xl sm:text-3xl font-bold text-slate-900 mt-0.5 sm:mt-1">{occupiedRooms}</p>
         </div>
 
-        <div className="p-5 bg-white border border-slate-200 rounded-xl hover:border-emerald-200 transition-all card-hover">
-          <div className="flex justify-between items-start mb-3">
-            <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center">
-              <DoorOpen size={20} className="text-emerald-600" />
+        <div className="p-3 sm:p-5 bg-white border border-slate-200 rounded-xl hover:border-emerald-200 transition-all card-hover">
+          <div className="flex justify-between items-start mb-2 sm:mb-3">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-slate-100 flex items-center justify-center">
+              <DoorOpen size={16} className="sm:hidden text-emerald-600" />
+              <DoorOpen size={20} className="hidden sm:block text-emerald-600" />
             </div>
-            <span className="text-[11px] text-slate-400">{occupancyRate}% rate</span>
+            <span className="hidden sm:inline text-[11px] text-slate-400">{occupancyRate}% rate</span>
           </div>
-          <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Vacant</p>
-          <p className="text-3xl font-bold text-slate-900 mt-1">{vacantRooms}</p>
+          <p className="text-[10px] sm:text-[11px] font-medium text-slate-500 uppercase tracking-wider">Vacant</p>
+          <p className="text-xl sm:text-3xl font-bold text-slate-900 mt-0.5 sm:mt-1">{vacantRooms}</p>
         </div>
 
-        <div className="p-5 bg-white border border-slate-200 rounded-xl hover:border-violet-200 transition-all card-hover">
-          <div className="flex justify-between items-start mb-3">
-            <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center">
-              <Users size={20} className="text-violet-600" />
+        <div className="p-3 sm:p-5 bg-white border border-slate-200 rounded-xl hover:border-violet-200 transition-all card-hover">
+          <div className="flex justify-between items-start mb-2 sm:mb-3">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-slate-100 flex items-center justify-center">
+              <Users size={16} className="sm:hidden text-violet-600" />
+              <Users size={20} className="hidden sm:block text-violet-600" />
             </div>
           </div>
-          <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Total Tenants</p>
-          <p className="text-3xl font-bold text-slate-900 mt-1">{activeTenants}</p>
+          <p className="text-[10px] sm:text-[11px] font-medium text-slate-500 uppercase tracking-wider">Total Tenants</p>
+          <p className="text-xl sm:text-3xl font-bold text-slate-900 mt-0.5 sm:mt-1">{activeTenants}</p>
         </div>
 
-        <div className="p-5 bg-white border border-slate-200 rounded-xl hover:border-indigo-200 transition-all card-hover">
-          <div className="flex justify-between items-start mb-3">
-            <div className="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center">
-              <TrendingUp size={20} className="text-indigo-600" />
+        <div className="p-3 sm:p-5 bg-white border border-slate-200 rounded-xl hover:border-indigo-200 transition-all card-hover">
+          <div className="flex justify-between items-start mb-2 sm:mb-3">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-indigo-50 flex items-center justify-center">
+              <TrendingUp size={16} className="sm:hidden text-indigo-600" />
+              <TrendingUp size={20} className="hidden sm:block text-indigo-600" />
             </div>
           </div>
-          <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Monthly Revenue</p>
-          <p className="text-3xl font-bold text-slate-900 mt-1">{`₹${monthlyRevenue.toLocaleString("en-IN")}`}</p>
+          <p className="text-[10px] sm:text-[11px] font-medium text-slate-500 uppercase tracking-wider">Revenue</p>
+          <p className="text-lg sm:text-3xl font-bold text-slate-900 mt-0.5 sm:mt-1">{`₹${monthlyRevenue.toLocaleString("en-IN")}`}</p>
         </div>
 
 
-        <div className="p-5 bg-white border border-slate-200 rounded-xl hover:border-amber-200 transition-all card-hover">
-          <div className="flex justify-between items-start mb-3">
-            <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
-              <AlertTriangle size={20} className="text-amber-600" />
+        <div className="p-3 sm:p-5 bg-white border border-slate-200 rounded-xl hover:border-amber-200 transition-all card-hover">
+          <div className="flex justify-between items-start mb-2 sm:mb-3">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-amber-50 flex items-center justify-center">
+              <AlertTriangle size={16} className="sm:hidden text-amber-600" />
+              <AlertTriangle size={20} className="hidden sm:block text-amber-600" />
             </div>
           </div>
-          <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Open Complaints</p>
-          <p className="text-3xl font-bold text-slate-900 mt-1">{String(openComplaints).padStart(2, "0")}</p>
+          <p className="text-[10px] sm:text-[11px] font-medium text-slate-500 uppercase tracking-wider">Complaints</p>
+          <p className="text-xl sm:text-3xl font-bold text-slate-900 mt-0.5 sm:mt-1">{String(openComplaints).padStart(2, "0")}</p>
         </div>
 
       </section>
@@ -523,30 +529,30 @@ export default function Dashboard() {
       </section>
 
       {/* Floating Action Button */}
-      <div className="fixed bottom-5 right-5 sm:bottom-8 sm:right-8 flex flex-col items-end gap-2 z-50">
+      <div className="fixed bottom-4 right-4 sm:bottom-8 sm:right-8 flex flex-col items-end gap-2 z-50">
         {fabOpen && (
           <div className="flex flex-col gap-2 items-end mb-2 animate-in slide-in-from-bottom-2">
             <Link
               href="/tenants"
-              className="bg-white text-slate-700 border border-slate-200 shadow-xl px-4 py-2 rounded-full flex items-center gap-2 text-xs font-medium hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200 transition-all"
+              className="bg-white text-slate-700 border border-slate-200 shadow-xl px-3 sm:px-4 py-1.5 sm:py-2 rounded-full flex items-center gap-2 text-[11px] sm:text-xs font-medium hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200 transition-all"
             >
-              <Users size={14} />
-              Manage Tenants
+              <Users size={13} />
+              Tenants
             </Link>
             <Link
               href="/rooms"
-              className="bg-white text-slate-700 border border-slate-200 shadow-xl px-4 py-2 rounded-full flex items-center gap-2 text-xs font-medium hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition-all"
+              className="bg-white text-slate-700 border border-slate-200 shadow-xl px-3 sm:px-4 py-1.5 sm:py-2 rounded-full flex items-center gap-2 text-[11px] sm:text-xs font-medium hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition-all"
             >
-              <BedDouble size={14} />
-              Manage Rooms
+              <BedDouble size={13} />
+              Rooms
             </Link>
           </div>
         )}
         <button
           onClick={() => setFabOpen(!fabOpen)}
-          className="w-14 h-14 rounded-full bg-indigo-600 text-white shadow-[0_8px_30px_rgb(79,70,229,0.4)] flex items-center justify-center active:scale-90 transition-transform hover:bg-indigo-700"
+          className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-indigo-600 text-white shadow-[0_8px_30px_rgb(79,70,229,0.4)] flex items-center justify-center active:scale-90 transition-transform hover:bg-indigo-700"
         >
-          <span className={`text-2xl transition-transform duration-200 ${fabOpen ? "rotate-45" : ""}`}>+</span>
+          <span className={`text-xl sm:text-2xl transition-transform duration-200 ${fabOpen ? "rotate-45" : ""}`}>+</span>
         </button>
       </div>
     </div>

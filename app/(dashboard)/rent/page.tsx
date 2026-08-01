@@ -80,18 +80,18 @@ export default function RentPage() {
     const StatusIcon = config.icon;
 
     return (
-      <div className="space-y-8">
+      <div className="space-y-4 sm:space-y-8">
         <div>
-          <h2 className="text-xl font-bold text-slate-900">{t("rent.myRent")}</h2>
-          <p className="text-sm text-slate-500 mt-1">{t("rent.myRentSubtitle")}</p>
+          <h2 className="text-lg sm:text-xl font-bold text-slate-900">{t("rent.myRent")}</h2>
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5 sm:mt-1">{t("rent.myRentSubtitle")}</p>
         </div>
 
         {/* Current Rent Card */}
         <Card className="overflow-hidden">
-          <div className="bg-gradient-to-br from-emerald-600 to-teal-700 p-6 text-white">
-            <p className="text-sm text-emerald-100 font-medium">Amount Due</p>
-            <p className="text-4xl font-bold mt-1">{myRent ? `₹${myRent.amount.toLocaleString("en-IN")}` : "₹0"}</p>
-            <div className="flex items-center gap-4 mt-4 text-sm text-emerald-100">
+          <div className="bg-gradient-to-br from-emerald-600 to-teal-700 p-4 sm:p-6 text-white">
+            <p className="text-xs sm:text-sm text-emerald-100 font-medium">Amount Due</p>
+            <p className="text-2xl sm:text-4xl font-bold mt-0.5 sm:mt-1">{myRent ? `₹${myRent.amount.toLocaleString("en-IN")}` : "₹0"}</p>
+            <div className="flex items-center gap-3 sm:gap-4 mt-2 sm:mt-4 text-[11px] sm:text-sm text-emerald-100">
               <span>Room: {myRent?.tenants?.rooms?.number || "—"}</span>
               <span>Due: {myRent ? new Date(myRent.due_date).toLocaleDateString("en-IN") : "—"}</span>
             </div>
@@ -418,54 +418,58 @@ export default function RentPage() {
   };
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-8">
+      <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-slate-900">{t("rent.title")}</h2>
-          <p className="text-sm text-slate-500 mt-1">{t("rent.subtitle")}</p>
+          <h2 className="text-lg sm:text-xl font-bold text-slate-900">{t("rent.title")}</h2>
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5 sm:mt-1">{t("rent.subtitle")}</p>
         </div>
         <Button variant="outline" size="sm">
           <Download size={14} />
-          {t("common.exportReport")}
+          <span className="hidden sm:inline">{t("common.exportReport")}</span>
+          <span className="sm:hidden">Export</span>
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+      <div className="grid grid-cols-3 gap-2 sm:gap-5">
         <Card className="card-hover">
-          <Card.Content className="p-5">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-emerald-50 rounded-xl">
-                <IndianRupee size={18} className="text-emerald-600" />
+          <Card.Content className="p-3 sm:p-5">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+              <div className="p-2 sm:p-2.5 bg-emerald-50 rounded-xl w-fit">
+                <IndianRupee size={14} className="sm:hidden text-emerald-600" />
+                <IndianRupee size={18} className="hidden sm:block text-emerald-600" />
               </div>
               <div>
-                <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">{t("rent.collected")}</p>
-                <p className="text-xl font-bold text-slate-900">{`₹${totalCollected.toLocaleString("en-IN")}`}</p>
+                <p className="text-[9px] sm:text-[11px] font-medium text-slate-500 uppercase tracking-wider">{t("rent.collected")}</p>
+                <p className="text-sm sm:text-xl font-bold text-slate-900">{`₹${totalCollected.toLocaleString("en-IN")}`}</p>
               </div>
             </div>
           </Card.Content>
         </Card>
         <Card className="card-hover">
-          <Card.Content className="p-5">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-amber-50 rounded-xl">
-                <IndianRupee size={18} className="text-amber-600" />
+          <Card.Content className="p-3 sm:p-5">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+              <div className="p-2 sm:p-2.5 bg-amber-50 rounded-xl w-fit">
+                <IndianRupee size={14} className="sm:hidden text-amber-600" />
+                <IndianRupee size={18} className="hidden sm:block text-amber-600" />
               </div>
               <div>
-                <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">{t("rent.pending")}</p>
-                <p className="text-xl font-bold text-slate-900">{`₹${totalPending.toLocaleString("en-IN")}`}</p>
+                <p className="text-[9px] sm:text-[11px] font-medium text-slate-500 uppercase tracking-wider">{t("rent.pending")}</p>
+                <p className="text-sm sm:text-xl font-bold text-slate-900">{`₹${totalPending.toLocaleString("en-IN")}`}</p>
               </div>
             </div>
           </Card.Content>
         </Card>
         <Card className="card-hover">
-          <Card.Content className="p-5">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-blue-50 rounded-xl">
-                <IndianRupee size={18} className="text-blue-600" />
+          <Card.Content className="p-3 sm:p-5">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+              <div className="p-2 sm:p-2.5 bg-blue-50 rounded-xl w-fit">
+                <IndianRupee size={14} className="sm:hidden text-blue-600" />
+                <IndianRupee size={18} className="hidden sm:block text-blue-600" />
               </div>
               <div>
-                <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">{t("rent.collectionRate")}</p>
-                <p className="text-xl font-bold text-slate-900">
+                <p className="text-[9px] sm:text-[11px] font-medium text-slate-500 uppercase tracking-wider">{t("rent.collectionRate")}</p>
+                <p className="text-sm sm:text-xl font-bold text-slate-900">
                   {rentCollection.length > 0
                     ? Math.round((rentCollection.filter((r) => r.status === "Paid").length / rentCollection.length) * 100)
                     : 0}%
@@ -476,21 +480,21 @@ export default function RentPage() {
         </Card>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
         <div className="relative flex-1 max-w-sm">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
             placeholder={t("rent.searchPlaceholder")}
-            className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400"
+            className="w-full pl-9 pr-4 py-2 sm:py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400"
           />
         </div>
-        <div className="flex gap-1.5 bg-slate-100 p-1 rounded-lg">
+        <div className="flex gap-1 sm:gap-1.5 bg-slate-100 p-1 rounded-lg overflow-x-auto">
           {(["All", "Paid", "Pending", "Overdue"] as const).map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-3.5 py-1.5 rounded-md text-sm font-medium transition-all ${
+              className={`px-2.5 sm:px-3.5 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${
                 filter === f ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
               }`}
             >

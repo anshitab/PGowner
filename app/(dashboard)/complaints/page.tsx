@@ -52,11 +52,11 @@ export default function ComplaintsPage() {
   const inProgressCount = baseData.filter((c) => c.status === "In Progress").length;
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-8">
+      <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-slate-900">{t("complaints.title")}</h2>
-          <p className="text-sm text-slate-500 mt-1">
+          <h2 className="text-lg sm:text-xl font-bold text-slate-900">{t("complaints.title")}</h2>
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5 sm:mt-1">
             <span className="text-red-600 font-medium">{openCount} {t("complaints.open")}</span> &middot;{" "}
             <span className="text-amber-600 font-medium">{inProgressCount} {t("complaints.inProgress")}</span> &middot;{" "}
             {baseData.length} {t("common.total")}
@@ -65,26 +65,27 @@ export default function ComplaintsPage() {
         {mode === "tenant" && (
           <Button variant="primary" size="sm" onPress={() => modalState.open()}>
             <Plus size={14} />
-            {t("complaints.logComplaint")}
+            <span className="hidden sm:inline">{t("complaints.logComplaint")}</span>
+            <span className="sm:hidden">New</span>
           </Button>
         )}
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
         <div className="relative flex-1 max-w-sm">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
             placeholder={t("complaints.searchPlaceholder")}
-            className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400"
+            className="w-full pl-9 pr-4 py-2 sm:py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400"
           />
         </div>
-        <div className="flex gap-1.5 bg-slate-100 p-1 rounded-lg">
+        <div className="flex gap-1 sm:gap-1.5 bg-slate-100 p-1 rounded-lg overflow-x-auto">
           {(["All", "Open", "In Progress", "Resolved"] as const).map((f) => (
             <button
               key={f}
               onClick={() => setStatusFilter(f)}
-              className={`px-3.5 py-1.5 rounded-md text-sm font-medium transition-all ${
+              className={`px-2.5 sm:px-3.5 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${
                 statusFilter === f ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
               }`}
             >
@@ -107,22 +108,22 @@ export default function ComplaintsPage() {
                 style={{ animationDelay: `${i * 60}ms` }}
                 onClick={() => setSelectedComplaint(complaint)}
               >
-                <Card.Content className="p-5">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start gap-4">
-                      <div className={`p-2.5 rounded-xl ${complaint.priority === "High" ? "bg-red-50" : complaint.priority === "Medium" ? "bg-amber-50" : "bg-emerald-50"}`}>
-                        <StatusIcon size={18} className={complaint.status === "Open" ? "text-red-500" : complaint.status === "In Progress" ? "text-amber-500" : "text-emerald-500"} />
+                <Card.Content className="p-3.5 sm:p-5">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2.5 sm:gap-0">
+                    <div className="flex items-start gap-3 sm:gap-4">
+                      <div className={`p-2 sm:p-2.5 rounded-xl shrink-0 ${complaint.priority === "High" ? "bg-red-50" : complaint.priority === "Medium" ? "bg-amber-50" : "bg-emerald-50"}`}>
+                        <StatusIcon size={16} className={complaint.status === "Open" ? "text-red-500" : complaint.status === "In Progress" ? "text-amber-500" : "text-emerald-500"} />
                       </div>
-                      <div>
-                        <h4 className="text-sm font-semibold text-slate-900">{complaint.title}</h4>
-                        <p className="text-xs text-slate-500 mt-1">{complaint.description}</p>
-                        <div className="flex items-center gap-3 mt-2">
-                          <span className="text-xs text-slate-600">{complaint.tenant} &middot; {t("common.room")} {complaint.room}</span>
-                          <span className="text-[11px] text-slate-400">{complaint.time}</span>
+                      <div className="min-w-0">
+                        <h4 className="text-xs sm:text-sm font-semibold text-slate-900">{complaint.title}</h4>
+                        <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5 sm:mt-1 line-clamp-2">{complaint.description}</p>
+                        <div className="flex items-center gap-2 sm:gap-3 mt-1.5 sm:mt-2 flex-wrap">
+                          <span className="text-[11px] sm:text-xs text-slate-600">{complaint.tenant} &middot; {t("common.room")} {complaint.room}</span>
+                          <span className="text-[10px] sm:text-[11px] text-slate-400">{complaint.time}</span>
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 sm:gap-2 ml-9 sm:ml-0 flex-wrap">
                       <Chip size="sm" variant="soft" color={priorityColor[complaint.priority]}>
                         {complaint.priority === "High" ? t("priority.high") : complaint.priority === "Medium" ? t("priority.medium") : t("priority.low")}
                       </Chip>
@@ -136,7 +137,7 @@ export default function ComplaintsPage() {
                             const next = complaint.status === "Open" ? "In Progress" : "Resolved";
                             updateStatus(complaint.id, next);
                           }}
-                          className="ml-2 px-3 py-1.5 text-xs font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
+                          className="px-2.5 sm:px-3 py-1 sm:py-1.5 text-[11px] sm:text-xs font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
                         >
                           {complaint.status === "Open" ? "Start" : "Resolve"}
                         </button>

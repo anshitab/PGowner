@@ -31,9 +31,6 @@ function LoginContent() {
   const [submitting, setSubmitting] = useState(false);
   const [signUpSuccess, setSignUpSuccess] = useState(false);
 
-  useEffect(() => {
-    if (!loading && isAuthenticated) router.replace("/dashboard");
-  }, [isAuthenticated, loading, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,7 +77,11 @@ function LoginContent() {
     }
   };
 
-  if (loading) return null;
+  if (loading) return (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
+    </div>
+  );
 
   const isOwner = activeTab === "owner";
 
@@ -149,7 +150,7 @@ function LoginContent() {
       </div>
 
       {/* Right — Form */}
-      <div className="flex items-center justify-center p-6 sm:p-12 bg-white">
+      <div className="flex items-center justify-center p-4 sm:p-6 lg:p-12 bg-white">
         <div className="w-full max-w-md">
           {/* Logo */}
 

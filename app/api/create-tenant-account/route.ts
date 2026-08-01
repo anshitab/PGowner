@@ -115,12 +115,16 @@ export async function POST(request: Request) {
           subject: `Your Tenant Login — ${pgName || "ProManage"}`,
           html,
         });
-      } catch (err) {
-        console.error("Failed to send tenant credentials email:", err);
+        return NextResponse.json({ userId, alreadyExists: false, emailSent: true });
+      } catch (err: unknown) {
+        const emailErr = err instanceof Error ? err.message : "Unknown email error";
+        console.error("Failed to send tenant credentials email:", emailErr);
+        return NextResponse.json({ userId, alreadyExists: false, emailSent: false, emailError: emailErr });
       }
+    } else {
+      console.error("Gmail credentials not configured:", { hasUser: !!gmailUser, hasPass: !!gmailAppPassword });
+      return NextResponse.json({ userId, alreadyExists: false, emailSent: false, emailError: "Gmail credentials not configured" });
     }
-
-    return NextResponse.json({ userId, alreadyExists: false });
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: msg }, { status: 500 });
