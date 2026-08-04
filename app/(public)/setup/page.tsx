@@ -5,14 +5,13 @@ import { useRouter } from "next/navigation";
 import { usePGConfig, PGConfig, PGRoom, PGBed } from "@/lib/PGConfigContext";
 import { usePropertyContext } from "@/lib/PropertyContext";
 import ConfigReview from "@/components/setup/ConfigReview";
-import VerificationStep from "@/components/setup/VerificationStep";
 import { Building2, Pencil } from "lucide-react";
 import { Button } from "@heroui/react";
 
 export default function SetupPage() {
   const router = useRouter();
   const { setConfig, isSetupComplete } = usePGConfig();
-  const { property, loading: propLoading } = usePropertyContext();
+  const { loading: propLoading } = usePropertyContext();
 
   // Form state
   const [name, setName] = useState("");
@@ -107,13 +106,12 @@ export default function SetupPage() {
   };
 
   const [setupError, setSetupError] = useState("");
-  const [showVerification, setShowVerification] = useState(false);
 
   const handleConfirm = async (finalConfig: PGConfig) => {
     setSetupError("");
     try {
       await setConfig(finalConfig);
-      setShowVerification(true);
+      router.replace("/dashboard");
     } catch (err: unknown) {
       setSetupError(err instanceof Error ? err.message : "Setup failed. Please try again.");
     }
@@ -127,22 +125,10 @@ export default function SetupPage() {
     );
   }
 
-  if (isSetupComplete && !showVerification) {
+  if (isSetupComplete) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
-      </div>
-    );
-  }
-
-  if (showVerification && property) {
-    return (
-      <div className="min-h-screen bg-slate-50 py-10 px-4">
-        <VerificationStep
-          propertyId={property.id}
-          onComplete={() => router.replace("/dashboard")}
-          onSkip={() => router.replace("/dashboard")}
-        />
       </div>
     );
   }

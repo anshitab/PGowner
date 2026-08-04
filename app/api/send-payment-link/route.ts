@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 
 export async function POST(request: Request) {
   const { tenantName, tenantEmail, amount, dueDate, upiId, pgName } = await request.json();
@@ -8,20 +8,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
-  const gmailUser = process.env.GMAIL_USER;
-  const gmailAppPassword = process.env.GMAIL_APP_PASSWORD;
+  const resendApiKey = process.env.RESEND_API_KEY;
 
-  if (!gmailUser || !gmailAppPassword) {
-    return NextResponse.json({ error: "Email service not configured. Set GMAIL_USER and GMAIL_APP_PASSWORD in .env.local" }, { status: 500 });
+  if (!resendApiKey) {
+    return NextResponse.json({ error: "Email service not configured (RESEND_API_KEY missing)" }, { status: 500 });
   }
 
-  const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: gmailUser,
-      pass: gmailAppPassword,
-    },
-  });
+  const resend = new Resend(resendApiKey);
 
   const upiLink = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(pgName || "PG Rent")}&am=${amount}&cu=INR&tn=${encodeURIComponent(`Rent payment for ${pgName || "PG"}`)}`;
 
@@ -53,12 +46,17 @@ export async function POST(request: Request) {
   `;
 
   try {
-    await transporter.sendMail({
-      from: `ProManage <${gmailUser}>`,
+    const { error } = await resend.emails.send({
+      from: "ProManage <onboarding@resend.dev>",
       to: tenantEmail,
       subject: `Rent Payment Reminder — ₹${Number(amount).toLocaleString("en-IN")} Due`,
       html,
     });
+
+    if (error) {
+      console.error("Resend email error:", error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
 
     return NextResponse.json({ success: true });
   } catch (err: unknown) {
