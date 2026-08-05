@@ -3,6 +3,7 @@
 import Sidebar from "@/components/Sidebar";
 import TopBar from "@/components/TopBar";
 import CommandPalette from "@/components/CommandPalette";
+import PageTransition from "@/components/PageTransition";
 import { useAuth } from "@/lib/AuthContext";
 import { usePropertyContext } from "@/lib/PropertyContext";
 import { useUserMode } from "@/lib/UserModeContext";
@@ -74,7 +75,9 @@ export default function DashboardLayout({
       <Sidebar mobileOpen={sidebarOpen} onMobileClose={() => setSidebarOpen(false)} />
       <div className="md:ml-64 min-h-screen flex flex-col">
         <TopBar onMenuClick={() => setSidebarOpen(true)} />
-        <main className="flex-1 p-4 sm:p-6 page-enter">{children}</main>
+        <main className="flex-1 p-4 sm:p-6">
+          <PageTransition>{children}</PageTransition>
+        </main>
       </div>
       <CommandPalette />
     </>

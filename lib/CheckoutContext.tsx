@@ -168,37 +168,91 @@ export function CheckoutProvider({ children }: { children: ReactNode }) {
 
   const completeCheckout = useCallback(async (id: string) => {
     const today = new Date().toISOString().split("T")[0];
-    const record = records.find((r) => r.id === id);
+
+    // Fetch the checkout record directly from DB to avoid stale closure
+    const { data: checkoutRow } = await supabase
+      .from("checkout_records")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (!checkoutRow) return;
+
+    const tenantId = checkoutRow.tenant_id;
+    const tenantName = checkoutRow.tenant_name;
+    const roomNumber = checkoutRow.room_number;
+    const refundAmount = checkoutRow.refund_amount || 0;
 
     await supabase
       .from("checkout_records")
       .update({ status: "completed", completed_date: today })
       .eq("id", id);
 
-    if (record) {
-      await supabase
-        .from("tenants")
-        .update({ room_id: null, status: "Inactive" })
-        .eq("id", record.tenantId);
+    // Get tenant's full data for cleanup
+    const { data: tenantData } = await supabase
+      .from("tenants")
+      .select("id, room_id, user_id")
+      .eq("id", tenantId)
+      .single();
+
+    if (tenantData) {
+      // Free up the bed
+      if (tenantData.room_id) {
+        await supabase
+          .from("beds")
+          .update({ tenant_id: null, tenant_name: null, status: "available", assigned_date: null })
+          .eq("room_id", tenantData.room_id)
+          .eq("tenant_name", tenantName);
+
+        // Check if room has any other occupied beds
+        const { data: occupiedBeds } = await supabase
+          .from("beds")
+          .select("id")
+          .eq("room_id", tenantData.room_id)
+          .eq("status", "occupied");
+
+        if (!occupiedBeds || occupiedBeds.length === 0) {
+          await supabase.from("rooms").update({ status: "Available" }).eq("id", tenantData.room_id);
+        }
+      }
+
+      // Delete related records
+      await supabase.from("rent_collection").delete().eq("tenant_id", tenantId);
+      await supabase.from("payments").delete().eq("tenant_id", tenantId);
+      await supabase.from("complaints").delete().eq("tenant_id", tenantId);
+
+      // Delete the tenant record
+      await supabase.from("tenants").delete().eq("id", tenantId);
+
+      // Delete auth user if exists
+      if (tenantData.user_id) {
+        fetch("/api/delete-tenant-user", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: tenantData.user_id }),
+        });
+      }
+
+      if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("rooms-updated"));
     }
 
     setRecords((prev) =>
       prev.map((r) => (r.id === id ? { ...r, status: "completed" as const, completedDate: today } : r))
     );
 
-    if (record && propertyId) {
+    if (propertyId) {
       logActivity({
         type: "checkout",
         action: "completed",
         title: "Checkout Completed",
-        description: `${record.tenantName} checked out from Room ${record.roomNumber}. Refund: ₹${record.refundAmount.toLocaleString("en-IN")}`,
-        entityId: record.tenantId,
+        description: `${tenantName} checked out from Room ${roomNumber}. Refund: ₹${refundAmount.toLocaleString("en-IN")}`,
+        entityId: tenantId,
         entityType: "tenant",
         actor: "Owner",
         propertyId,
       });
     }
-  }, [records, propertyId]);
+  }, [propertyId]);
 
   const cancelCheckout = useCallback(async (id: string) => {
     await supabase.from("checkout_records").update({ status: "cancelled" }).eq("id", id);

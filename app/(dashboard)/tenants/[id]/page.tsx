@@ -8,7 +8,7 @@ import { supabase } from "@/lib/supabase";
 import { Card, Chip } from "@heroui/react";
 import {
   ArrowLeft, User, Phone, Mail, MapPin, Briefcase, Building2,
-  Shield, IndianRupee, FileText, Download, Calendar, AlertCircle,
+  Shield, IndianRupee, FileText, Calendar, AlertCircle,
   CheckCircle2, Clock,
 } from "lucide-react";
 import Link from "next/link";
@@ -159,10 +159,6 @@ export default function TenantDetailPage() {
         </button>
         <button onClick={() => alert("Reminder sent!")} className="px-4 py-2 text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors">
           Send Reminder
-        </button>
-        <button onClick={() => alert("Agreement download coming soon")} className="px-4 py-2 text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors">
-          <Download size={12} className="inline mr-1" />
-          Download Agreement
         </button>
       </div>
 
@@ -333,37 +329,6 @@ export default function TenantDetailPage() {
             </Card.Content>
           </Card>
 
-          {/* Documents */}
-          <Card>
-            <Card.Header className="px-5 pt-5 pb-0">
-              <Card.Title className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-                <FileText size={15} className="text-blue-500" />
-                Documents
-              </Card.Title>
-            </Card.Header>
-            <Card.Content className="p-5 space-y-2">
-              {[
-                { name: "Rent Agreement", uploaded: tenant.documents?.agreement ?? false },
-                { name: "Aadhaar Card", uploaded: tenant.documents?.aadhaar ?? false },
-                { name: "PAN Card", uploaded: tenant.documents?.pan ?? false },
-              ].map((doc) => (
-                <div key={doc.name} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <FileText size={14} className={doc.uploaded ? "text-blue-500" : "text-slate-300"} />
-                    <span className="text-sm text-slate-700">{doc.name}</span>
-                  </div>
-                  {doc.uploaded ? (
-                    <button onClick={() => alert(`Download ${doc.name} - coming soon`)} className="text-[11px] font-medium text-blue-600 hover:text-blue-700">
-                      <Download size={12} className="inline mr-0.5" />
-                      View
-                    </button>
-                  ) : (
-                    <span className="text-[11px] text-slate-400">Not uploaded</span>
-                  )}
-                </div>
-              ))}
-            </Card.Content>
-          </Card>
 
           {/* Room Info */}
           <Card>

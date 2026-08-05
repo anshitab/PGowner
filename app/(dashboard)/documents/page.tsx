@@ -6,8 +6,8 @@ import { useAuth } from "@/lib/AuthContext";
 import { usePropertyContext } from "@/lib/PropertyContext";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
-import { Card, Chip } from "@heroui/react";
-import { FileText, Download, Shield, Receipt, Calendar } from "lucide-react";
+import { Card } from "@heroui/react";
+import { Download, Receipt, Calendar } from "lucide-react";
 
 export default function DocumentsPage() {
   const { mode } = useUserMode();
@@ -51,82 +51,7 @@ export default function DocumentsPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <Card.Header className="px-5 pt-5 pb-0">
-            <Card.Title className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-              <FileText size={15} className="text-blue-500" />
-              Agreements
-            </Card.Title>
-          </Card.Header>
-          <Card.Content className="p-5 space-y-3">
-            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <FileText size={16} className="text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-slate-800">Rent Agreement</p>
-                  <p className="text-[11px] text-slate-500">
-                    Valid from {tenant?.join_date ? new Date(tenant.join_date as string).toLocaleDateString("en-IN", { month: "short", year: "numeric" }) : "-"}
-                  </p>
-                </div>
-              </div>
-              <Chip size="sm" variant="soft" color="success">On File</Chip>
-            </div>
 
-            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-slate-100 rounded-lg">
-                  <FileText size={16} className="text-slate-600" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-slate-800">House Rules</p>
-                  <p className="text-[11px] text-slate-500">PG guidelines and policies</p>
-                </div>
-              </div>
-              <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors">
-                <Download size={12} />
-                Download
-              </button>
-            </div>
-          </Card.Content>
-        </Card>
-
-        <Card>
-          <Card.Header className="px-5 pt-5 pb-0">
-            <Card.Title className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-              <Shield size={15} className="text-emerald-500" />
-              ID Documents
-            </Card.Title>
-          </Card.Header>
-          <Card.Content className="p-5 space-y-3">
-            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-emerald-100 rounded-lg">
-                  <Shield size={16} className="text-emerald-600" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-slate-800">Aadhaar Card</p>
-                  <p className="text-[11px] text-slate-500 font-mono">{(tenant?.gov_ids as Record<string, string>)?.aadhaar || "XXXX-XXXX-XXXX"}</p>
-                </div>
-              </div>
-              <Chip size="sm" variant="soft" color="success">Verified</Chip>
-            </div>
-
-            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-emerald-100 rounded-lg">
-                  <Shield size={16} className="text-emerald-600" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-slate-800">PAN Card</p>
-                  <p className="text-[11px] text-slate-500 font-mono">{(tenant?.gov_ids as Record<string, string>)?.pan || "XXXXX0000X"}</p>
-                </div>
-              </div>
-              <Chip size="sm" variant="soft" color="success">Verified</Chip>
-            </div>
-          </Card.Content>
-        </Card>
 
         <Card className="lg:col-span-2">
           <Card.Header className="px-5 pt-5 pb-0">

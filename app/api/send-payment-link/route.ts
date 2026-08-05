@@ -1,5 +1,39 @@
 import { NextResponse } from "next/server";
-import { Resend } from "resend";
+
+async function sendMailjet(to: string, toName: string, subject: string, htmlContent: string) {
+  const apiKey = process.env.MAILJET_API_KEY;
+  const secretKey = process.env.MAILJET_SECRET_KEY;
+  const senderEmail = process.env.MAILJET_SENDER_EMAIL || "anshitabathla33@gmail.com";
+
+  if (!apiKey || !secretKey) {
+    throw new Error("MAILJET_API_KEY or MAILJET_SECRET_KEY not configured");
+  }
+
+  const response = await fetch("https://api.mailjet.com/v3.1/send", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: "Basic " + Buffer.from(`${apiKey}:${secretKey}`).toString("base64"),
+    },
+    body: JSON.stringify({
+      Messages: [
+        {
+          From: { Email: senderEmail, Name: "ProManage" },
+          To: [{ Email: to, Name: toName }],
+          Subject: subject,
+          HTMLPart: htmlContent,
+        },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.text();
+    throw new Error(`Mailjet error (${response.status}): ${errorData}`);
+  }
+
+  return response.json();
+}
 
 export async function POST(request: Request) {
   const { tenantName, tenantEmail, amount, dueDate, upiId, pgName } = await request.json();
@@ -7,14 +41,6 @@ export async function POST(request: Request) {
   if (!tenantEmail || !amount || !upiId) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
-
-  const resendApiKey = process.env.RESEND_API_KEY;
-
-  if (!resendApiKey) {
-    return NextResponse.json({ error: "Email service not configured (RESEND_API_KEY missing)" }, { status: 500 });
-  }
-
-  const resend = new Resend(resendApiKey);
 
   const upiLink = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(pgName || "PG Rent")}&am=${amount}&cu=INR&tn=${encodeURIComponent(`Rent payment for ${pgName || "PG"}`)}`;
 
@@ -46,18 +72,7 @@ export async function POST(request: Request) {
   `;
 
   try {
-    const { error } = await resend.emails.send({
-      from: "ProManage <onboarding@resend.dev>",
-      to: tenantEmail,
-      subject: `Rent Payment Reminder — ₹${Number(amount).toLocaleString("en-IN")} Due`,
-      html,
-    });
-
-    if (error) {
-      console.error("Resend email error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
+    await sendMailjet(tenantEmail, tenantName || "Tenant", `Rent Payment Reminder — ₹${Number(amount).toLocaleString("en-IN")} Due`, html);
     return NextResponse.json({ success: true });
   } catch (err: unknown) {
     console.error("Email send error:", err);

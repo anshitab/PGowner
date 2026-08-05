@@ -7,6 +7,7 @@ import { usePropertyContext } from "@/lib/PropertyContext";
 import ConfigReview from "@/components/setup/ConfigReview";
 import { Building2, Pencil } from "lucide-react";
 import { Button } from "@heroui/react";
+import { motion } from "motion/react";
 
 export default function SetupPage() {
   const router = useRouter();
@@ -150,7 +151,12 @@ export default function SetupPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4 py-10">
-      <div className="w-full max-w-2xl space-y-8">
+      <motion.div
+        className="w-full max-w-2xl space-y-8"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: [0.25, 0.1, 0.25, 1] }}
+      >
         {/* Header */}
         <div className="text-center">
           <div className="w-14 h-14 rounded-2xl bg-indigo-100 flex items-center justify-center mx-auto mb-4">
@@ -330,7 +336,7 @@ export default function SetupPage() {
             Generate My PG Setup
           </Button>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

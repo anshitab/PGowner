@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Search, Phone, Mail, CheckCircle } from "lucide-react";
+import { Plus, Search, Phone, Mail, CheckCircle, Pencil, LogOut } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Card, Chip, Button, Avatar, AvatarFallback, Modal, useOverlayState } from "@heroui/react";
 import EmptyState from "@/components/EmptyState";
@@ -19,6 +19,8 @@ interface Tenant {
   status: string;
   rent: number;
   join_date: string;
+  room_id: string | null;
+  user_id: string | null;
   rooms: { number: string } | null;
 }
 
@@ -37,10 +39,21 @@ export default function TenantsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
   const modalState = useOverlayState();
+  const editModalState = useOverlayState();
   const { t } = useLanguage();
   const { mode } = useUserMode();
   const router = useRouter();
   const { propertyId, property } = usePropertyContext();
+  const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
+  const [editForm, setEditForm] = useState({
+    name: "",
+    phone: "",
+    email: "",
+    rent: "",
+    status: "Active",
+  });
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const [editError, setEditError] = useState("");
 
   // Form state
   const [sharingFilter, setSharingFilter] = useState<string>("Single");
@@ -229,6 +242,100 @@ export default function TenantsPage() {
     setSubmitting(false);
   };
 
+  const openEditModal = (tenant: Tenant) => {
+    setEditingTenant(tenant);
+    setEditForm({
+      name: tenant.name,
+      phone: tenant.phone,
+      email: tenant.email,
+      rent: `₹${tenant.rent.toLocaleString("en-IN")}`,
+      status: tenant.status,
+    });
+    setEditError("");
+    editModalState.open();
+  };
+
+  const handleEditTenant = async () => {
+    setEditError("");
+    if (!editingTenant) return;
+    if (!editForm.name.trim()) { setEditError("Name is required"); return; }
+    if (!editForm.phone.trim()) { setEditError("Phone is required"); return; }
+
+    setEditSubmitting(true);
+    const rent = parseInt(editForm.rent.replace(/[^\d]/g, "")) || 0;
+
+    const { error } = await supabase
+      .from("tenants")
+      .update({
+        name: editForm.name.trim(),
+        phone: editForm.phone.trim(),
+        email: editForm.email.trim(),
+        rent,
+        status: editForm.status,
+      })
+      .eq("id", editingTenant.id);
+
+    if (error) {
+      setEditError(error.message);
+    } else {
+      editModalState.close();
+      setEditingTenant(null);
+      await fetchTenants();
+    }
+    setEditSubmitting(false);
+  };
+
+  const handleCheckout = async (tenant: Tenant) => {
+    const confirmed = window.confirm(`Are you sure you want to checkout "${tenant.name}"? This will permanently delete their data.`);
+    if (!confirmed) return;
+
+    // Free up the bed assigned to this tenant
+    if (tenant.room_id) {
+      await supabase
+        .from("beds")
+        .update({ tenant_id: null, tenant_name: null, status: "available", assigned_date: null })
+        .eq("room_id", tenant.room_id)
+        .eq("tenant_name", tenant.name);
+
+      // Check if room has any other occupied beds
+      const { data: occupiedBeds } = await supabase
+        .from("beds")
+        .select("id")
+        .eq("room_id", tenant.room_id)
+        .eq("status", "occupied");
+
+      if (!occupiedBeds || occupiedBeds.length === 0) {
+        await supabase.from("rooms").update({ status: "Available" }).eq("id", tenant.room_id);
+      }
+    }
+
+    // Delete rent collection records
+    await supabase.from("rent_collection").delete().eq("tenant_id", tenant.id);
+
+    // Delete payments
+    await supabase.from("payments").delete().eq("tenant_id", tenant.id);
+
+    // Delete complaints by this tenant
+    await supabase.from("complaints").delete().eq("tenant_id", tenant.id);
+
+    // Delete the tenant record
+    await supabase.from("tenants").delete().eq("id", tenant.id);
+
+    // Delete auth user if exists
+    if (tenant.user_id) {
+      await fetch("/api/delete-tenant-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: tenant.user_id }),
+      });
+    }
+
+    if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("rooms-updated"));
+    editModalState.close();
+    setEditingTenant(null);
+    await fetchTenants();
+  };
+
   if (mode === "tenant") return null;
 
   if (loading) {
@@ -318,13 +425,111 @@ export default function TenantsPage() {
                     {t("tenants.joined")}{" "}
                     {new Date(tenant.join_date).toLocaleDateString("en-IN", { month: "short", year: "numeric" })}
                   </span>
-                  <span className="text-xs sm:text-sm font-semibold text-slate-900">{`₹${tenant.rent.toLocaleString("en-IN")}`}/mo</span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); openEditModal(tenant); }}
+                      className="p-1.5 rounded-md hover:bg-slate-100 text-slate-400 hover:text-indigo-600 transition-colors"
+                      title="Edit tenant"
+                    >
+                      <Pencil size={12} />
+                    </button>
+                    <span className="text-xs sm:text-sm font-semibold text-slate-900">{`₹${tenant.rent.toLocaleString("en-IN")}`}/mo</span>
+                  </div>
                 </div>
               </Card.Content>
             </Card>
             </Link>
           ))}
         </div>
+      )}
+
+      {editModalState.isOpen && editingTenant && (
+        <Modal state={editModalState}>
+          <Modal.Backdrop variant="blur">
+            <Modal.Container size="md" placement="center">
+              <Modal.Dialog aria-label="Edit Tenant">
+                <Modal.Header>
+                  <Modal.Heading>Edit Tenant</Modal.Heading>
+                </Modal.Header>
+                <Modal.Body>
+                  <div className="space-y-4">
+                    {editError && (
+                      <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{editError}</p>
+                    )}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Name <span className="text-red-500">*</span></label>
+                        <input
+                          type="text"
+                          value={editForm.name}
+                          onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Phone <span className="text-red-500">*</span></label>
+                        <input
+                          type="tel"
+                          value={editForm.phone}
+                          onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+                        <input
+                          type="email"
+                          value={editForm.email}
+                          onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Monthly Rent</label>
+                        <input
+                          type="text"
+                          value={editForm.rent}
+                          onChange={(e) => setEditForm({ ...editForm, rent: e.target.value })}
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
+                      <select
+                        value={editForm.status}
+                        onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                      >
+                        <option value="Active">Active</option>
+                        <option value="Inactive">Inactive</option>
+                      </select>
+                    </div>
+                  </div>
+                </Modal.Body>
+                <Modal.Footer className="flex justify-between">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-red-600 border-red-200 hover:bg-red-50"
+                    onPress={() => editingTenant && handleCheckout(editingTenant)}
+                  >
+                    <LogOut size={13} />
+                    Checkout
+                  </Button>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onPress={() => editModalState.close()}>Cancel</Button>
+                    <Button variant="primary" size="sm" isDisabled={editSubmitting} onPress={handleEditTenant}>
+                      {editSubmitting ? "Saving..." : "Save Changes"}
+                    </Button>
+                  </div>
+                </Modal.Footer>
+              </Modal.Dialog>
+            </Modal.Container>
+          </Modal.Backdrop>
+        </Modal>
       )}
 
       {modalState.isOpen && (

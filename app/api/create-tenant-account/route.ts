@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { Resend } from "resend";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -16,6 +15,41 @@ function generatePassword(): string {
   return password;
 }
 
+async function sendMailjet(to: string, toName: string, subject: string, htmlContent: string) {
+  const apiKey = process.env.MAILJET_API_KEY;
+  const secretKey = process.env.MAILJET_SECRET_KEY;
+  const senderEmail = process.env.MAILJET_SENDER_EMAIL || "anshitabathla33@gmail.com";
+
+  if (!apiKey || !secretKey) {
+    throw new Error("MAILJET_API_KEY or MAILJET_SECRET_KEY not configured");
+  }
+
+  const response = await fetch("https://api.mailjet.com/v3.1/send", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: "Basic " + Buffer.from(`${apiKey}:${secretKey}`).toString("base64"),
+    },
+    body: JSON.stringify({
+      Messages: [
+        {
+          From: { Email: senderEmail, Name: "ProManage" },
+          To: [{ Email: to, Name: toName }],
+          Subject: subject,
+          HTMLPart: htmlContent,
+        },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.text();
+    throw new Error(`Mailjet error (${response.status}): ${errorData}`);
+  }
+
+  return response.json();
+}
+
 export async function POST(request: Request) {
   try {
     const { tenantName, tenantEmail, pgName, roomNumber } = await request.json();
@@ -26,7 +60,6 @@ export async function POST(request: Request) {
 
     const password = generatePassword();
 
-    // Create auth user with tenant role
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: tenantEmail,
       password,
@@ -43,7 +76,6 @@ export async function POST(request: Request) {
 
     const userId = authData.user?.id;
 
-    // Link tenant record to the new auth user
     if (userId) {
       await supabaseAdmin
         .from("tenants")
@@ -52,15 +84,6 @@ export async function POST(request: Request) {
         .is("user_id", null);
     }
 
-    // Send credentials email via Resend
-    const resendApiKey = process.env.RESEND_API_KEY;
-
-    if (!resendApiKey) {
-      console.error("RESEND_API_KEY not configured");
-      return NextResponse.json({ userId, alreadyExists: false, emailSent: false, emailError: "Email service not configured (RESEND_API_KEY missing)" });
-    }
-
-    const resend = new Resend(resendApiKey);
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
 
     const html = `
@@ -108,18 +131,7 @@ export async function POST(request: Request) {
     `;
 
     try {
-      const { error: emailError } = await resend.emails.send({
-        from: "ProManage <onboarding@resend.dev>",
-        to: tenantEmail,
-        subject: `Your Tenant Login — ${pgName || "ProManage"}`,
-        html,
-      });
-
-      if (emailError) {
-        console.error("Resend email error:", emailError);
-        return NextResponse.json({ userId, alreadyExists: false, emailSent: false, emailError: emailError.message });
-      }
-
+      await sendMailjet(tenantEmail, tenantName, `Your Tenant Login — ${pgName || "ProManage"}`, html);
       return NextResponse.json({ userId, alreadyExists: false, emailSent: true });
     } catch (err: unknown) {
       const emailErr = err instanceof Error ? err.message : "Unknown email error";

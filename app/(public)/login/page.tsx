@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Building2, Eye, EyeOff, User } from "lucide-react";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useAuth, AuthRole } from "@/lib/AuthContext";
+import { motion } from "motion/react";
 
 export default function LoginPage() {
   return (
@@ -86,9 +87,18 @@ function LoginContent() {
   const isOwner = activeTab === "owner";
 
   return (
-    <div className="min-h-screen grid lg:grid-cols-2">
+    <motion.div
+      className="min-h-screen grid lg:grid-cols-2"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.4 }}
+    >
       {/* Left — Branded Panel */}
-      <div className={`hidden lg:flex items-center justify-center p-12 transition-colors duration-500 ${
+      <motion.div
+        initial={{ opacity: 0, x: -30 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.5, delay: 0.1 }}
+        className={`hidden lg:flex items-center justify-center p-12 transition-colors duration-500 ${
         isOwner
           ? "bg-gradient-to-br from-blue-600 via-indigo-600 to-blue-800"
           : "bg-gradient-to-br from-emerald-600 via-teal-600 to-emerald-800"
@@ -147,10 +157,15 @@ function LoginContent() {
             )}
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Right — Form */}
-      <div className="flex items-center justify-center p-4 sm:p-6 lg:p-12 bg-white">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+        className="flex items-center justify-center p-4 sm:p-6 lg:p-12 bg-white"
+      >
         <div className="w-full max-w-md">
           {/* Logo */}
 
@@ -347,7 +362,7 @@ function LoginContent() {
             </div>
           )}
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

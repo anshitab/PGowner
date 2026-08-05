@@ -2,22 +2,20 @@
 
 import { usePropertyContext } from "@/lib/PropertyContext";
 import { usePGData } from "@/lib/usePGData";
-import { Building2, Plus, MapPin, Shield, ShieldCheck, ShieldX } from "lucide-react";
-import { Card, Chip, Button, Modal, ProgressBar, useOverlayState } from "@heroui/react";
+import { Building2, Plus, MapPin } from "lucide-react";
+import { Card, Button, Modal, ProgressBar, useOverlayState } from "@heroui/react";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useUserMode } from "@/lib/UserModeContext";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import VerificationStep from "@/components/setup/VerificationStep";
+import { useEffect } from "react";
 
 export default function PropertiesPage() {
   const modalState = useOverlayState();
   const { t } = useLanguage();
   const { mode } = useUserMode();
   const router = useRouter();
-  const { property, loading, refetch } = usePropertyContext();
+  const { property, loading } = usePropertyContext();
   const pgData = usePGData();
-  const [showVerifyModal, setShowVerifyModal] = useState(false);
 
   useEffect(() => {
     if (mode === "tenant") router.replace("/dashboard");
@@ -69,24 +67,6 @@ export default function PropertiesPage() {
                 <div className="p-2.5 bg-blue-50 rounded-xl">
                   <Building2 size={20} className="text-blue-600" />
                 </div>
-                <div className="flex items-center gap-2">
-                  {property.verification_status === "verified" ? (
-                    <Chip size="sm" variant="soft" color="success">
-                      <ShieldCheck size={11} className="mr-1" />
-                      Verified
-                    </Chip>
-                  ) : property.verification_status === "rejected" ? (
-                    <Chip size="sm" variant="soft" color="danger">
-                      <ShieldX size={11} className="mr-1" />
-                      Rejected
-                    </Chip>
-                  ) : (
-                    <Chip size="sm" variant="soft" color="warning">
-                      <Shield size={11} className="mr-1" />
-                      Pending
-                    </Chip>
-                  )}
-                </div>
               </div>
               <h3 className="text-base font-semibold text-slate-900 mb-1">
                 {property.name}
@@ -116,22 +96,6 @@ export default function PropertiesPage() {
                   <span className="font-semibold text-slate-900">{`₹${monthlyRevenue.toLocaleString("en-IN")}`}</span>
                 </div>
               </div>
-              {property.verification_status !== "verified" && (
-                <div className="mt-4 pt-4 border-t border-slate-100">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                    onPress={() => setShowVerifyModal(true)}
-                  >
-                    <Shield size={14} />
-                    Verify Property
-                  </Button>
-                  <p className="text-[10px] text-slate-400 mt-1.5 text-center">
-                    Upload a document to make your PG visible to visitors
-                  </p>
-                </div>
-              )}
             </Card.Content>
           </Card>
         </div>
@@ -205,18 +169,6 @@ export default function PropertiesPage() {
         </Modal>
       )}
 
-      {showVerifyModal && property && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowVerifyModal(false)} />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto p-6">
-            <VerificationStep
-              propertyId={property.id}
-              onComplete={() => { setShowVerifyModal(false); refetch(); }}
-              onSkip={() => setShowVerifyModal(false)}
-            />
-          </div>
-        </div>
-      )}
     </div>
   );
 }
