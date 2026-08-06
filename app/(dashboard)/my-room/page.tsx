@@ -9,10 +9,11 @@ import { useBeds } from "@/lib/BedContext";
 import { useSettings } from "@/lib/SettingsContext";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
-import { Card, Chip } from "@heroui/react";
+import { Card, Chip, Button } from "@heroui/react";
 import {
   Home, Bed, Users, Wifi, Wind, Droplets, ShowerHead,
   DoorOpen, BookOpen, Flower2, CheckCircle2, AlertCircle,
+  Receipt, Calendar, Download, LogOut,
 } from "lucide-react";
 
 const amenityIcons: Record<string, typeof Wifi> = {
@@ -36,6 +37,10 @@ export default function MyRoomPage() {
   const { settings } = useSettings();
   const router = useRouter();
   const [tenant, setTenant] = useState<Record<string, unknown> | null>(null);
+  const [payments, setPayments] = useState<Record<string, unknown>[]>([]);
+  const [checkoutDate, setCheckoutDate] = useState("");
+  const [checkoutSubmitting, setCheckoutSubmitting] = useState(false);
+  const [checkoutSuccess, setCheckoutSuccess] = useState(false);
 
   useEffect(() => {
     if (mode === "owner") router.replace("/dashboard");
@@ -49,9 +54,32 @@ export default function MyRoomPage() {
         .select("*, rooms(number, floor, type, rent)")
         .eq("user_id", user.id)
         .maybeSingle();
-      if (data) setTenant(data);
+      if (data) {
+        setTenant(data);
+        const { data: p } = await supabase
+          .from("payments")
+          .select("*")
+          .eq("tenant_id", data.id)
+          .order("date", { ascending: false });
+        if (p) setPayments(p);
+      }
     })();
   }, [user]);
+
+  const handleCheckout = async () => {
+    if (!checkoutDate || !user) return;
+    setCheckoutSubmitting(true);
+    try {
+      await fetch("/api/checkout-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id, checkoutDate }),
+      });
+      setCheckoutSuccess(true);
+    } finally {
+      setCheckoutSubmitting(false);
+    }
+  };
 
   if (mode === "owner") return null;
 
@@ -219,8 +247,85 @@ export default function MyRoomPage() {
               )}
             </Card.Content>
           </Card>
+
+          {/* Checkout Request */}
+          <Card>
+            <Card.Header className="px-5 pt-5 pb-0">
+              <Card.Title className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                <LogOut size={15} className="text-red-500" />
+                Request Checkout
+              </Card.Title>
+            </Card.Header>
+            <Card.Content className="p-5">
+              {checkoutSuccess ? (
+                <div className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-3">
+                  <p className="font-medium">Request sent!</p>
+                  <p className="text-xs text-emerald-600 mt-1">Your PG owner has been notified via email.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-xs text-slate-500">Select your preferred checkout date. Owner will be notified.</p>
+                  <input
+                    type="date"
+                    value={checkoutDate}
+                    onChange={(e) => setCheckoutDate(e.target.value)}
+                    min={new Date().toISOString().split("T")[0]}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-300"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onPress={handleCheckout}
+                    isDisabled={!checkoutDate || checkoutSubmitting}
+                    className="w-full text-red-600 border-red-200 hover:bg-red-50"
+                  >
+                    <LogOut size={14} />
+                    {checkoutSubmitting ? "Sending..." : "Submit Checkout Request"}
+                  </Button>
+                </div>
+              )}
+            </Card.Content>
+          </Card>
         </div>
       </div>
+
+      {/* Payment Receipts */}
+      <Card>
+        <Card.Header className="px-5 pt-5 pb-0">
+          <Card.Title className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+            <Receipt size={15} className="text-amber-500" />
+            Payment Receipts
+          </Card.Title>
+        </Card.Header>
+        <Card.Content className="p-5">
+          {payments.length > 0 ? (
+            <div className="space-y-2">
+              {payments.map((p) => (
+                <div key={p.id as string} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-amber-100 rounded-lg">
+                      <Receipt size={16} className="text-amber-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-slate-800">₹{(p.amount as number).toLocaleString("en-IN")} — {p.method as string}</p>
+                      <p className="text-[11px] text-slate-500 flex items-center gap-1">
+                        <Calendar size={10} />
+                        {new Date(p.date as string).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                      </p>
+                    </div>
+                  </div>
+                  <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors">
+                    <Download size={12} />
+                    Receipt
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-slate-400 text-center py-6">No payment receipts yet</p>
+          )}
+        </Card.Content>
+      </Card>
     </div>
   );
 }

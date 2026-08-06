@@ -39,7 +39,6 @@ const allNavItems: NavItem[] = [
   { key: "nav.payments", icon: "CreditCard", href: "/payments", ownerOnly: true },
   { key: "nav.complaints", icon: "MessageSquareWarning", href: "/complaints" },
   { key: "nav.myRoom", icon: "Home", href: "/my-room", tenantOnly: true },
-  { key: "nav.documents", icon: "FileText", href: "/documents", tenantOnly: true },
 ];
 
 const icons: Record<string, React.ComponentType<{ size?: number }>> = {

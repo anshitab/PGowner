@@ -1,13 +1,14 @@
 "use client";
 
 import { Plus, Search, AlertCircle, Clock, CheckCircle2 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, Chip, Button, Modal, useOverlayState } from "@heroui/react";
 import EmptyState from "@/components/EmptyState";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useUserMode } from "@/lib/UserModeContext";
 import { useAuth } from "@/lib/AuthContext";
 import { useComplaints, Complaint } from "@/lib/ComplaintContext";
+import { supabase } from "@/lib/supabase";
 import ComplaintDetailModal from "@/components/complaints/ComplaintDetailModal";
 
 const statusIcons: Record<string, typeof AlertCircle> = {
@@ -31,7 +32,7 @@ const priorityColor: Record<string, "danger" | "warning" | "success"> = {
 };
 
 export default function ComplaintsPage() {
-  const { complaints, updateStatus } = useComplaints();
+  const { complaints, updateStatus, addComplaint } = useComplaints();
   const { t } = useLanguage();
   const { mode } = useUserMode();
   const { user } = useAuth();
@@ -39,6 +40,50 @@ export default function ComplaintsPage() {
   const [statusFilter, setStatusFilter] = useState<"All" | "Open" | "In Progress" | "Resolved" | "Closed">("All");
   const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null);
   const modalState = useOverlayState();
+
+  // New complaint form state
+  const [newTitle, setNewTitle] = useState("");
+  const [newDescription, setNewDescription] = useState("");
+  const [newPriority, setNewPriority] = useState<"High" | "Medium" | "Low">("Medium");
+  const [submittingComplaint, setSubmittingComplaint] = useState(false);
+  const [tenantData, setTenantData] = useState<{ id: string; name: string; room: string } | null>(null);
+
+  useEffect(() => {
+    if (!user || mode !== "tenant") return;
+    (async () => {
+      const { data } = await supabase
+        .from("tenants")
+        .select("id, name, rooms(number)")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (data) {
+        setTenantData({
+          id: data.id,
+          name: data.name,
+          room: (data.rooms as unknown as { number: string } | null)?.number || "",
+        });
+      }
+    })();
+  }, [user, mode]);
+
+  const handleSubmitComplaint = async () => {
+    if (!newTitle.trim() || !tenantData) return;
+    setSubmittingComplaint(true);
+    await addComplaint({
+      tenantId: tenantData.id,
+      title: newTitle.trim(),
+      description: newDescription.trim(),
+      priority: newPriority,
+      status: "Open",
+      tenant: tenantData.name,
+      room: tenantData.room,
+    });
+    setNewTitle("");
+    setNewDescription("");
+    setNewPriority("Medium");
+    setSubmittingComplaint(false);
+    modalState.close();
+  };
 
   const baseData = mode === "tenant"
     ? complaints.filter((c) => c.tenant === user?.name)
@@ -170,25 +215,48 @@ export default function ComplaintsPage() {
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1">{t("complaints.complaintTitle")}</label>
-                      <input type="text" placeholder="Brief description of the issue" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" />
+                      <input
+                        type="text"
+                        value={newTitle}
+                        onChange={(e) => setNewTitle(e.target.value)}
+                        placeholder="Brief description of the issue"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                      />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1">{t("complaints.description")}</label>
-                      <textarea placeholder="Detailed description..." rows={3} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-none" />
+                      <textarea
+                        value={newDescription}
+                        onChange={(e) => setNewDescription(e.target.value)}
+                        placeholder="Detailed description..."
+                        rows={3}
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-none"
+                      />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1">{t("complaints.priority")}</label>
-                      <select className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
-                        <option>{t("priority.high")}</option>
-                        <option>{t("priority.medium")}</option>
-                        <option>{t("priority.low")}</option>
+                      <select
+                        value={newPriority}
+                        onChange={(e) => setNewPriority(e.target.value as "High" | "Medium" | "Low")}
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                      >
+                        <option value="High">{t("priority.high")}</option>
+                        <option value="Medium">{t("priority.medium")}</option>
+                        <option value="Low">{t("priority.low")}</option>
                       </select>
                     </div>
                   </div>
                 </Modal.Body>
                 <Modal.Footer className="flex justify-end gap-2">
                   <Button variant="outline" size="sm" onPress={() => modalState.close()}>{t("common.cancel")}</Button>
-                  <Button variant="primary" size="sm" onPress={() => modalState.close()}>{t("complaints.submitComplaint")}</Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onPress={handleSubmitComplaint}
+                    isDisabled={!newTitle.trim() || submittingComplaint}
+                  >
+                    {submittingComplaint ? "Submitting..." : t("complaints.submitComplaint")}
+                  </Button>
                 </Modal.Footer>
               </Modal.Dialog>
             </Modal.Container>

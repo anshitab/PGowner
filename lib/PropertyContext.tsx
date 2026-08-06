@@ -28,6 +28,7 @@ interface PropertyContextType {
   selectProperty: (id: string) => void;
   refetch: () => Promise<void>;
   createProperty: (props: Omit<Property, "id" | "owner_id" | "created_at">) => Promise<Property | null>;
+  deleteProperty: (id: string) => Promise<boolean>;
 }
 
 const PropertyContext = createContext<PropertyContextType>({
@@ -38,6 +39,7 @@ const PropertyContext = createContext<PropertyContextType>({
   selectProperty: () => {},
   refetch: async () => {},
   createProperty: async () => null,
+  deleteProperty: async () => false,
 });
 
 export function PropertyProvider({ children }: { children: ReactNode }) {
@@ -132,8 +134,23 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
     return null;
   }, [user]);
 
+  const deleteProperty = useCallback(async (id: string) => {
+    const { error } = await supabase.from("properties").delete().eq("id", id);
+    if (error) return false;
+
+    const remaining = properties.filter((p) => p.id !== id);
+    setProperties(remaining);
+    if (property?.id === id) {
+      const next = remaining[0] || null;
+      setProperty(next);
+      if (next) localStorage.setItem(STORAGE_KEY, next.id);
+      else localStorage.removeItem(STORAGE_KEY);
+    }
+    return true;
+  }, [properties, property]);
+
   return (
-    <PropertyContext.Provider value={{ property, properties, propertyId: property?.id || null, loading, selectProperty, refetch: fetchProperty, createProperty }}>
+    <PropertyContext.Provider value={{ property, properties, propertyId: property?.id || null, loading, selectProperty, refetch: fetchProperty, createProperty, deleteProperty }}>
       {children}
     </PropertyContext.Provider>
   );

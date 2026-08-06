@@ -39,6 +39,8 @@ function SetupContent() {
   const [roomNumbers, setRoomNumbers] = useState<string[][]>([]);
   // Room sharing type map: key = "floorIdx-roomIdx", value = "Single" | "Double" | "Triple"
   const [roomTypes, setRoomTypes] = useState<Record<string, "Single" | "Double" | "Triple">>({});
+  const [step, setStep] = useState(1);
+  const [setupError, setSetupError] = useState("");
 
   // Review state
   const [showReview, setShowReview] = useState(false);
@@ -156,8 +158,6 @@ function SetupContent() {
     setShowReview(true);
   };
 
-  const [setupError, setSetupError] = useState("");
-
   const handleConfirm = async (finalConfig: PGConfig) => {
     setSetupError("");
     try {
@@ -197,7 +197,6 @@ function SetupContent() {
     );
   }
 
-  const [step, setStep] = useState(1);
   const AMENITY_OPTIONS = ["WiFi", "AC", "Fan", "Geyser", "Attached Bath", "Common Bath", "Wardrobe", "Study Table", "Balcony"];
 
   return (

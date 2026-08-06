@@ -2,18 +2,19 @@
 
 import { usePropertyContext } from "@/lib/PropertyContext";
 import { usePGData } from "@/lib/usePGData";
-import { Building2, Plus, MapPin, Check } from "lucide-react";
+import { Building2, Plus, MapPin, Check, Trash2 } from "lucide-react";
 import { Card, Button, ProgressBar } from "@heroui/react";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useUserMode } from "@/lib/UserModeContext";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export default function PropertiesPage() {
   const { t } = useLanguage();
   const { mode } = useUserMode();
   const router = useRouter();
-  const { property, properties, loading, selectProperty } = usePropertyContext();
+  const { property, properties, loading, selectProperty, deleteProperty } = usePropertyContext();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const pgData = usePGData();
 
   useEffect(() => {
@@ -73,11 +74,26 @@ export default function PropertiesPage() {
                     <div className={`p-2.5 rounded-xl ${isActive ? "bg-blue-50" : "bg-slate-50"}`}>
                       <Building2 size={20} className={isActive ? "text-blue-600" : "text-slate-400"} />
                     </div>
-                    {isActive && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 text-[11px] font-medium rounded-full">
-                        <Check size={10} /> Active
-                      </span>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {isActive && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 text-[11px] font-medium rounded-full">
+                          <Check size={10} /> Active
+                        </span>
+                      )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm(`Delete "${p.name}"? This will permanently remove this property and all its data.`)) {
+                            setDeletingId(p.id);
+                            deleteProperty(p.id).finally(() => setDeletingId(null));
+                          }
+                        }}
+                        disabled={deletingId === p.id}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </div>
                   <h3 className="text-base font-semibold text-slate-900 mb-1">
                     {p.name}

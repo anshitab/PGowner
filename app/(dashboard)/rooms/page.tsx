@@ -8,6 +8,7 @@ import { useUserMode } from "@/lib/UserModeContext";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import RoomDetailPanel from "@/components/rooms/RoomDetailPanel";
+import AddRoomModal from "@/components/rooms/AddRoomModal";
 import { usePGData } from "@/lib/usePGData";
 
 export default function RoomsPage() {
@@ -19,6 +20,7 @@ export default function RoomsPage() {
   const beds = pgData.beds;
   const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
   const [hoveredRoom, setHoveredRoom] = useState<string | null>(null);
+  const [showAddRoom, setShowAddRoom] = useState(false);
 
   useEffect(() => {
     if (mode === "tenant") router.replace("/dashboard");
@@ -55,7 +57,7 @@ export default function RoomsPage() {
             <span className="text-amber-600 font-medium">{vacantCount} vacant</span>
           </p>
         </div>
-        <Button variant="primary" size="sm">
+        <Button variant="primary" size="sm" onPress={() => setShowAddRoom(true)}>
           <Plus size={14} />
           <span className="hidden sm:inline">{t("rooms.addRoom")}</span>
           <span className="sm:hidden">Add</span>
@@ -233,6 +235,15 @@ export default function RoomsPage() {
       {/* Detail Panel */}
       {selectedRoom && (
         <RoomDetailPanel roomId={selectedRoom} onClose={() => setSelectedRoom(null)} />
+      )}
+
+      {/* Add Room Modal */}
+      {showAddRoom && (
+        <AddRoomModal
+          totalFloors={pgData.totalFloors}
+          onClose={() => setShowAddRoom(false)}
+          onAdded={() => pgData.refetch()}
+        />
       )}
     </div>
   );
