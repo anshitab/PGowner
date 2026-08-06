@@ -6,6 +6,7 @@ import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useAuth } from "@/lib/AuthContext";
 import { useUserMode } from "@/lib/UserModeContext";
 import { useRouter } from "next/navigation";
+import PropertySwitcher from "./PropertySwitcher";
 
 interface TopBarProps {
   onMenuClick?: () => void;
@@ -36,6 +37,7 @@ export default function TopBar({ onMenuClick }: TopBarProps) {
         >
           <Menu size={20} />
         </button>
+        {mode === "owner" && <PropertySwitcher />}
         {mode === "owner" && (
           <div className="relative group hidden sm:block">
             <Search

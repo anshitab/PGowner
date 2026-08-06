@@ -135,8 +135,8 @@ function LoginContent() {
                   <p className="text-[11px] text-blue-200 mt-1">Access</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-white">Free</p>
-                  <p className="text-[11px] text-blue-200 mt-1">Forever</p>
+                  <p className="text-2xl font-bold text-white">One‑Time</p>
+                  <p className="text-[11px] text-blue-200 mt-1">Subscription</p>
                 </div>
               </>
             ) : (

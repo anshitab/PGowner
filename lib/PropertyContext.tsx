@@ -4,6 +4,8 @@ import { createContext, useContext, useState, useEffect, useCallback, ReactNode 
 import { supabase } from "./supabase";
 import { useAuth } from "./AuthContext";
 
+const STORAGE_KEY = "pgowner_selected_property_id";
+
 export interface Property {
   id: string;
   owner_id: string;
@@ -20,16 +22,20 @@ export interface Property {
 
 interface PropertyContextType {
   property: Property | null;
+  properties: Property[];
   propertyId: string | null;
   loading: boolean;
+  selectProperty: (id: string) => void;
   refetch: () => Promise<void>;
   createProperty: (props: Omit<Property, "id" | "owner_id" | "created_at">) => Promise<Property | null>;
 }
 
 const PropertyContext = createContext<PropertyContextType>({
   property: null,
+  properties: [],
   propertyId: null,
   loading: true,
+  selectProperty: () => {},
   refetch: async () => {},
   createProperty: async () => null,
 });
@@ -37,17 +43,26 @@ const PropertyContext = createContext<PropertyContextType>({
 export function PropertyProvider({ children }: { children: ReactNode }) {
   const { user, isAuthenticated } = useAuth();
   const [property, setProperty] = useState<Property | null>(null);
+  const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const selectProperty = useCallback((id: string) => {
+    const found = properties.find((p) => p.id === id);
+    if (found) {
+      setProperty(found);
+      localStorage.setItem(STORAGE_KEY, id);
+    }
+  }, [properties]);
 
   const fetchProperty = useCallback(async () => {
     if (!user) {
       setProperty(null);
+      setProperties([]);
       setLoading(false);
       return;
     }
 
     if (user.role === "tenant") {
-      // For tenants: find their linked tenant record, then fetch that property
       const { data: tenant } = await supabase
         .from("tenants")
         .select("property_id")
@@ -61,8 +76,10 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
           .eq("id", tenant.property_id)
           .single();
         setProperty(prop || null);
+        setProperties(prop ? [prop] : []);
       } else {
         setProperty(null);
+        setProperties([]);
       }
       setLoading(false);
       return;
@@ -72,13 +89,17 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
       .from("properties")
       .select("*")
       .eq("owner_id", user.id)
-      .limit(1)
-      .maybeSingle();
+      .order("created_at", { ascending: true });
 
-    if (!error && data) {
-      setProperty(data);
+    if (!error && data && data.length > 0) {
+      setProperties(data);
+      const storedId = localStorage.getItem(STORAGE_KEY);
+      const selected = data.find((p) => p.id === storedId) || data[0];
+      setProperty(selected);
+      localStorage.setItem(STORAGE_KEY, selected.id);
     } else {
       setProperty(null);
+      setProperties([]);
     }
     setLoading(false);
   }, [user]);
@@ -88,6 +109,7 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
       fetchProperty();
     } else {
       setProperty(null);
+      setProperties([]);
       setLoading(false);
     }
   }, [isAuthenticated, fetchProperty]);
@@ -102,14 +124,16 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
       .single();
 
     if (!error && data) {
+      setProperties((prev) => [...prev, data]);
       setProperty(data);
+      localStorage.setItem(STORAGE_KEY, data.id);
       return data as Property;
     }
     return null;
   }, [user]);
 
   return (
-    <PropertyContext.Provider value={{ property, propertyId: property?.id || null, loading, refetch: fetchProperty, createProperty }}>
+    <PropertyContext.Provider value={{ property, properties, propertyId: property?.id || null, loading, selectProperty, refetch: fetchProperty, createProperty }}>
       {children}
     </PropertyContext.Provider>
   );

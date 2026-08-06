@@ -83,6 +83,8 @@ export function PGConfigProvider({ children }: { children: ReactNode }) {
       throw new Error(propError?.message || "Failed to create property");
     }
 
+    localStorage.setItem("pgowner_selected_property_id", prop.id);
+
     for (const room of newConfig.rooms) {
       const { data: roomRow } = await supabase
         .from("rooms")
