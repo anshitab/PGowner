@@ -1,11 +1,12 @@
 "use client";
 
 import { useUserMode } from "@/lib/UserModeContext";
+import { useAuth } from "@/lib/AuthContext";
+import { usePropertyContext } from "@/lib/PropertyContext";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Card } from "@heroui/react";
 import { HelpCircle, Phone, Mail, MessageCircle, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
-import { useState } from "react";
 import Link from "next/link";
 
 const faqs = [
@@ -19,12 +20,26 @@ const faqs = [
 
 export default function SupportPage() {
   const { mode } = useUserMode();
+  const { user } = useAuth();
+  const { property } = usePropertyContext();
   const router = useRouter();
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [ownerInfo, setOwnerInfo] = useState<{ name: string; email: string; phone: string } | null>(null);
 
   useEffect(() => {
     if (mode === "owner") router.replace("/dashboard");
   }, [mode, router]);
+
+  useEffect(() => {
+    if (!user?.id || mode !== "tenant") return;
+    (async () => {
+      const res = await fetch(`/api/owner-info?userId=${user.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.owner) setOwnerInfo(data.owner);
+      }
+    })();
+  }, [user?.id, mode]);
 
   if (mode === "owner") return null;
 
@@ -103,45 +118,51 @@ export default function SupportPage() {
             <Card.Content className="p-5 space-y-4">
               <div className="text-center pb-4 border-b border-slate-100">
                 <div className="w-14 h-14 rounded-full bg-indigo-100 flex items-center justify-center text-lg font-bold text-indigo-700 mx-auto mb-3">
-                  PG
+                  {ownerInfo?.name ? ownerInfo.name.split(" ").map((n) => n[0]).join("") : "PG"}
                 </div>
-                <p className="text-sm font-semibold text-slate-900">PG Owner</p>
-                <p className="text-[11px] text-slate-500">Green Valley Apartments</p>
+                <p className="text-sm font-semibold text-slate-900">{ownerInfo?.name || "PG Owner"}</p>
+                <p className="text-[11px] text-slate-500">{property?.name || ""}</p>
               </div>
 
-              <a
-                href="tel:+919876500000"
-                className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors"
-              >
-                <Phone size={16} className="text-slate-500" />
-                <div>
-                  <p className="text-xs text-slate-500">Phone</p>
-                  <p className="text-sm font-medium text-slate-800">+91 98765 00000</p>
-                </div>
-              </a>
+              {ownerInfo?.phone && (
+                <a
+                  href={`tel:${ownerInfo.phone}`}
+                  className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors"
+                >
+                  <Phone size={16} className="text-slate-500" />
+                  <div>
+                    <p className="text-xs text-slate-500">Phone</p>
+                    <p className="text-sm font-medium text-slate-800">{ownerInfo.phone}</p>
+                  </div>
+                </a>
+              )}
 
-              <a
-                href="mailto:owner@greenvalleypg.com"
-                className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors"
-              >
-                <Mail size={16} className="text-slate-500" />
-                <div>
-                  <p className="text-xs text-slate-500">Email</p>
-                  <p className="text-sm font-medium text-slate-800">owner@greenvalleypg.com</p>
-                </div>
-              </a>
+              {ownerInfo?.email && (
+                <a
+                  href={`mailto:${ownerInfo.email}`}
+                  className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors"
+                >
+                  <Mail size={16} className="text-slate-500" />
+                  <div>
+                    <p className="text-xs text-slate-500">Email</p>
+                    <p className="text-sm font-medium text-slate-800">{ownerInfo.email}</p>
+                  </div>
+                </a>
+              )}
 
-              <a
-                href="https://wa.me/919876500000"
-                target="_blank"
-                className="flex items-center gap-3 p-3 bg-emerald-50 rounded-lg hover:bg-emerald-100 transition-colors"
-              >
-                <MessageCircle size={16} className="text-emerald-600" />
-                <div>
-                  <p className="text-xs text-emerald-600">WhatsApp</p>
-                  <p className="text-sm font-medium text-emerald-800">Send Message</p>
-                </div>
-              </a>
+              {ownerInfo?.phone && (
+                <a
+                  href={`https://wa.me/${ownerInfo.phone.replace(/[^0-9]/g, "")}`}
+                  target="_blank"
+                  className="flex items-center gap-3 p-3 bg-emerald-50 rounded-lg hover:bg-emerald-100 transition-colors"
+                >
+                  <MessageCircle size={16} className="text-emerald-600" />
+                  <div>
+                    <p className="text-xs text-emerald-600">WhatsApp</p>
+                    <p className="text-sm font-medium text-emerald-800">Send Message</p>
+                  </div>
+                </a>
+              )}
             </Card.Content>
           </Card>
 

@@ -1,12 +1,14 @@
 "use client";
 
 import { User, Shield, ScrollText, Plus, Trash2, GripVertical } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, Button, Avatar, AvatarFallback } from "@heroui/react";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useUserMode } from "@/lib/UserModeContext";
 import { useAuth } from "@/lib/AuthContext";
 import { useSettings } from "@/lib/SettingsContext";
+import { supabase } from "@/lib/supabase";
+import { usePropertyContext } from "@/lib/PropertyContext";
 
 const allTabs = [
   { id: "profile", key: "settings.profile", icon: User },
@@ -20,21 +22,70 @@ export default function SettingsPage() {
   const { mode } = useUserMode();
   const { user } = useAuth();
   const { settings, updateSettings } = useSettings();
+  const { propertyId } = usePropertyContext();
   const [newRule, setNewRule] = useState("");
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const [profileName, setProfileName] = useState(user?.name || "");
+  const [profileEmail, setProfileEmail] = useState(user?.email || "");
+  const [profilePhone, setProfilePhone] = useState("");
+
+  useEffect(() => {
+    setProfileName(user?.name || "");
+    setProfileEmail(user?.email || "");
+  }, [user?.name, user?.email]);
+
+  useEffect(() => {
+    if (!propertyId) return;
+    (async () => {
+      const { data } = await supabase
+        .from("settings")
+        .select("phone")
+        .eq("property_id", propertyId)
+        .maybeSingle();
+      if (data?.phone) setProfilePhone(data.phone);
+    })();
+  }, [propertyId]);
 
   const tabs = mode === "owner" ? allTabs : allTabs.filter((tab) => !tab.ownerOnly);
 
   const isOwner = mode === "owner";
-  const userName = user?.name || "User";
-  const userEmail = user?.email || "";
-  const userPhone = "";
+  const userName = profileName || user?.name || "User";
+  const userEmail = profileEmail || user?.email || "";
   const userRole = isOwner ? t("mode.propertyManager") : t("mode.tenant");
   const userInitials = userName.split(" ").map((n) => n[0]).join("");
 
   const showSaved = () => {
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+  };
+
+  const handleSaveProfile = async () => {
+    setSaving(true);
+    try {
+      await supabase.auth.updateUser({
+        data: { name: profileName.trim(), phone: profilePhone.trim() },
+      });
+
+      if (propertyId && profilePhone.trim()) {
+        const { data: existing } = await supabase
+          .from("settings")
+          .select("id")
+          .eq("property_id", propertyId)
+          .maybeSingle();
+
+        if (existing) {
+          await supabase.from("settings").update({ phone: profilePhone.trim() }).eq("id", existing.id);
+        } else {
+          await supabase.from("settings").insert({ property_id: propertyId, phone: profilePhone.trim() });
+        }
+      }
+
+      showSaved();
+    } finally {
+      setSaving(false);
+    }
   };
 
   const addRule = () => {
@@ -95,29 +146,46 @@ export default function SettingsPage() {
                   </Avatar>
                   <div>
                     <p className="text-sm font-semibold text-slate-900">{userName}</p>
-                    <p className="text-xs text-slate-500">ID: 4821</p>
-                    <button className="text-xs text-blue-600 font-medium mt-1 hover:underline">{t("settings.changePhoto")}</button>
+                    <p className="text-xs text-slate-500">{userRole}</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-slate-600 mb-1.5">{t("settings.fullName")}</label>
-                    <input type="text" defaultValue={userName} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all" />
+                    <input
+                      type="text"
+                      value={profileName}
+                      onChange={(e) => setProfileName(e.target.value)}
+                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                    />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-slate-600 mb-1.5">{t("settings.email")}</label>
-                    <input type="email" defaultValue={userEmail} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all" />
+                    <input
+                      type="email"
+                      value={profileEmail}
+                      disabled
+                      className="w-full px-3 py-2.5 bg-slate-100 border border-slate-200 rounded-lg text-sm text-slate-500"
+                    />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-slate-600 mb-1.5">{t("settings.phone")}</label>
-                    <input type="tel" defaultValue={userPhone} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all" />
+                    <input
+                      type="tel"
+                      value={profilePhone}
+                      onChange={(e) => setProfilePhone(e.target.value)}
+                      placeholder="+91 98765 43210"
+                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                    />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-slate-600 mb-1.5">{t("settings.role")}</label>
-                    <input type="text" defaultValue={userRole} disabled className="w-full px-3 py-2.5 bg-slate-100 border border-slate-200 rounded-lg text-sm text-slate-500" />
+                    <input type="text" value={userRole} disabled className="w-full px-3 py-2.5 bg-slate-100 border border-slate-200 rounded-lg text-sm text-slate-500" />
                   </div>
                 </div>
-                <Button variant="primary" size="sm" onClick={showSaved}>{t("common.save")}</Button>
+                <Button variant="primary" size="sm" onClick={handleSaveProfile} isDisabled={saving}>
+                  {saving ? "Saving..." : t("common.save")}
+                </Button>
               </div>
             )}
 
@@ -239,7 +307,7 @@ export default function SettingsPage() {
                     </Button>
                   </div>
                 </div>
-                <Button variant="primary" size="sm" onClick={showSaved}>{t("common.save")}</Button>
+                <Button variant="primary" size="sm" onClick={() => { updateSettings({}); showSaved(); }}>{t("common.save")}</Button>
               </div>
             )}
 

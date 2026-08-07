@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Search, Phone, Mail, CheckCircle, Pencil, LogOut } from "lucide-react";
+import { Plus, Search, Phone, Mail, CheckCircle, Pencil, LogOut, Lock } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Card, Chip, Button, Avatar, AvatarFallback, Modal, useOverlayState } from "@heroui/react";
 import EmptyState from "@/components/EmptyState";
@@ -76,6 +76,8 @@ export default function TenantsPage() {
     if (mode === "tenant") router.replace("/dashboard");
   }, [mode, router]);
 
+  const [checkoutTenantIds, setCheckoutTenantIds] = useState<Set<string>>(new Set());
+
   const fetchTenants = async () => {
     if (!propertyId) return;
     setLoading(true);
@@ -86,6 +88,16 @@ export default function TenantsPage() {
     if (!error && data) {
       setTenants(data as Tenant[]);
     }
+
+    const { data: checkouts } = await supabase
+      .from("checkout_records")
+      .select("tenant_id")
+      .eq("property_id", propertyId)
+      .neq("status", "completed");
+    if (checkouts) {
+      setCheckoutTenantIds(new Set(checkouts.map((c) => c.tenant_id)));
+    }
+
     setLoading(false);
   };
 
@@ -400,7 +412,14 @@ export default function TenantsPage() {
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <h4 className="text-xs sm:text-sm font-semibold text-slate-900">{tenant.name}</h4>
+                      <div className="flex items-center gap-1.5">
+                        <h4 className="text-xs sm:text-sm font-semibold text-slate-900">{tenant.name}</h4>
+                        {checkoutTenantIds.has(tenant.id) && (
+                          <span title="Checkout requested — leaving soon">
+                            <Lock size={12} className="text-amber-500" />
+                          </span>
+                        )}
+                      </div>
                       <p className="text-[10px] sm:text-[11px] text-slate-500">
                         {t("common.room")} {tenant.rooms?.number || "—"}
                       </p>

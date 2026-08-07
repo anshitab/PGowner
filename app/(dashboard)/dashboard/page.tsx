@@ -28,28 +28,7 @@ export default function Dashboard() {
   const [recentPayments, setRecentPayments] = useState<Array<{ id: string; tenant: string; room: string; amount: number }>>([]);
   const [tenantData, setTenantData] = useState<{ id?: string; name?: string; phone?: string; email?: string; room?: string; rent?: number; joinDate?: string; property?: string; upiId?: string } | null>(null);
   const [myPayments, setMyPayments] = useState<Array<{ id: string; amount: number; date: string; method: string; verified: boolean }>>([]);
-  const [checkoutSubmitted, setCheckoutSubmitted] = useState(false);
 
-  function getEstimatedCheckoutDate(joinDate: string | undefined): string {
-    if (!joinDate) return "";
-    const join = new Date(joinDate);
-    const joinDay = join.getDate();
-    const now = new Date();
-    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, joinDay);
-    return nextMonth.toISOString().split("T")[0];
-  }
-
-  const estimatedCheckout = getEstimatedCheckoutDate(tenantData?.joinDate);
-
-  const handleCheckoutRequest = async () => {
-    if (!estimatedCheckout || !user?.id) return;
-    await fetch("/api/checkout-request", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: user.id, checkoutDate: estimatedCheckout }),
-    });
-    setCheckoutSubmitted(true);
-  };
 
   // Fetch recent payments for owner dashboard
   useEffect(() => {
@@ -320,52 +299,6 @@ export default function Dashboard() {
             </Card.Content>
           </Card>
 
-        <Card>
-          <Card.Header className="px-5 pt-5 pb-0">
-            <Card.Title className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-              <DoorOpen size={15} className="text-red-500" />
-              Checkout Request
-            </Card.Title>
-          </Card.Header>
-          <Card.Content className="p-5">
-            {checkoutSubmitted ? (
-              <div className="text-center py-4">
-                <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-3">
-                  <AlertCircle size={18} className="text-emerald-600" />
-                </div>
-                <p className="text-sm font-medium text-slate-800">Checkout request submitted</p>
-                <p className="text-xs text-slate-500 mt-1">Your PG owner will review it shortly</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div className="p-2.5 bg-slate-50 rounded-lg">
-                    <p className="text-[10px] text-slate-500 uppercase">Room</p>
-                    <p className="font-medium text-slate-800">{tenantData?.room || "—"}</p>
-                  </div>
-                  <div className="p-2.5 bg-slate-50 rounded-lg">
-                    <p className="text-[10px] text-slate-500 uppercase">Monthly Rent</p>
-                    <p className="font-medium text-slate-800">{tenantData?.rent ? `₹${tenantData.rent.toLocaleString("en-IN")}` : "—"}</p>
-                  </div>
-                </div>
-                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                  <p className="text-[10px] text-amber-600 uppercase font-medium">Estimated Checkout Date</p>
-                  <p className="text-sm font-bold text-amber-800 mt-0.5">
-                    {estimatedCheckout ? new Date(estimatedCheckout).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }) : "—"}
-                  </p>
-                  <p className="text-[10px] text-amber-600 mt-1">Based on your join date ({tenantData?.joinDate ? new Date(tenantData.joinDate).getDate() : "—"}th of every month)</p>
-                </div>
-                <button
-                  onClick={handleCheckoutRequest}
-                  disabled={!estimatedCheckout}
-                  className="w-full py-2.5 bg-red-600 hover:bg-red-700 disabled:bg-slate-300 text-white text-sm font-semibold rounded-xl transition-colors"
-                >
-                  Request Checkout
-                </button>
-              </div>
-            )}
-          </Card.Content>
-        </Card>
 
         {/* Support & Help */}
         <Card>
