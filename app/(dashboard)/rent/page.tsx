@@ -17,11 +17,13 @@ interface RentEntry {
   paid_date: string | null;
   method: string | null;
   tenant_id: string;
-  tenants: { name: string; email: string; rooms: { number: string } | null } | null;
+  tenants: { name: string; email: string; rooms: { number: string; floor: number } | null } | null;
 }
 
 export default function RentPage() {
   const [filter, setFilter] = useState<"All" | "Paid" | "Pending" | "Overdue">("All");
+  const [floorFilter, setFloorFilter] = useState<"All" | number>("All");
+  const [searchQuery, setSearchQuery] = useState("");
   const [rentCollection, setRentCollection] = useState<RentEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [sendingTo, setSendingTo] = useState<RentEntry | null>(null);
@@ -44,7 +46,7 @@ export default function RentPage() {
     setLoading(true);
     const { data, error } = await supabase
       .from("rent_collection")
-      .select("*, tenants(name, email, rooms(number))")
+      .select("*, tenants(name, email, rooms(number, floor))")
       .eq("property_id", propertyId)
       .order("due_date", { ascending: false });
     if (!error && data) {
@@ -400,9 +402,20 @@ export default function RentPage() {
   };
 
   // Owner view — full rent management table
-  const filtered = rentCollection.filter(
-    (r) => filter === "All" || r.status === filter
-  );
+  const totalFloors = property?.total_floors || 0;
+  const floors = Array.from({ length: totalFloors }, (_, i) => i);
+
+  const filtered = rentCollection
+    .filter((r) => filter === "All" || r.status === filter)
+    .filter((r) => floorFilter === "All" || r.tenants?.rooms?.floor === floorFilter)
+    .filter((r) => {
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase();
+      return (
+        (r.tenants?.name || "").toLowerCase().includes(q) ||
+        (r.tenants?.rooms?.number || "").toLowerCase().includes(q)
+      );
+    });
 
   const totalCollected = rentCollection
     .filter((r) => r.status === "Paid")
@@ -485,6 +498,8 @@ export default function RentPage() {
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={t("rent.searchPlaceholder")}
             className="w-full pl-9 pr-4 py-2 sm:py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400"
           />
@@ -503,6 +518,23 @@ export default function RentPage() {
           ))}
         </div>
       </div>
+
+      {floors.length > 0 && (
+        <div className="flex items-center gap-2">
+          <select
+            value={floorFilter === "All" ? "All" : String(floorFilter)}
+            onChange={(e) => setFloorFilter(e.target.value === "All" ? "All" : Number(e.target.value))}
+            className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+          >
+            <option value="All">All Floors</option>
+            {floors.map((f) => (
+              <option key={f} value={f}>
+                {f === 0 ? "Ground Floor" : `Floor ${f}`}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {filtered.length === 0 ? (
         <EmptyState title={t("rent.noEntries")} description={t("rent.noEntriesDesc")} />
