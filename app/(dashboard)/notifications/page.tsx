@@ -1,44 +1,28 @@
 "use client";
 
-import { supabase } from "@/lib/supabase";
-import { usePropertyContext } from "@/lib/PropertyContext";
+import { useState, useEffect, useCallback } from "react";
 import {
-  IndianRupee, AlertCircle, UserCheck, AlertTriangle, Info, CheckCircle2, Bell,
+  Bell, DoorOpen, AlertCircle, CheckCircle2, Clock,
 } from "lucide-react";
-import { useState, useEffect } from "react";
-import { Card, Button, Switch } from "@heroui/react";
+import { Card, Chip, Button } from "@heroui/react";
 import EmptyState from "@/components/EmptyState";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useUserMode } from "@/lib/UserModeContext";
+import { usePropertyContext } from "@/lib/PropertyContext";
 import { useRouter } from "next/navigation";
 
-interface Notification {
+interface NotificationItem {
   id: string;
+  type: "checkout" | "complaint";
   title: string;
-  message: string;
+  description: string;
+  tenant: string;
+  room: string;
   time: string;
-  type: "payment" | "complaint" | "visitor" | "warning" | "info" | "success";
-  read: boolean;
-  tenantId: string | null;
+  status: string;
+  priority?: string;
+  createdAt: string;
 }
-
-const typeIcons = {
-  payment: IndianRupee,
-  complaint: AlertCircle,
-  visitor: UserCheck,
-  warning: AlertTriangle,
-  info: Info,
-  success: CheckCircle2,
-};
-
-const typeColors = {
-  payment: "bg-emerald-50 text-emerald-600",
-  complaint: "bg-red-50 text-red-600",
-  visitor: "bg-blue-50 text-blue-600",
-  warning: "bg-amber-50 text-amber-600",
-  info: "bg-slate-100 text-slate-600",
-  success: "bg-emerald-50 text-emerald-600",
-};
 
 function getRelativeTime(timestamp: string): string {
   if (!timestamp) return "";
@@ -52,61 +36,73 @@ function getRelativeTime(timestamp: string): string {
 }
 
 export default function NotificationsPage() {
-  const [showUnread, setShowUnread] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [loading, setLoading] = useState(true);
   const { t } = useLanguage();
   const { mode } = useUserMode();
-  const router = useRouter();
   const { propertyId } = usePropertyContext();
+  const router = useRouter();
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<"All" | "checkout" | "complaint">("All");
+  const [resolvingId, setResolvingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (mode === "tenant") router.replace("/dashboard");
   }, [mode, router]);
 
-  useEffect(() => {
-    async function fetchNotifications() {
-      if (!propertyId) {
-        setNotifications([]);
-        setLoading(false);
-        return;
-      }
-
-      const { data } = await supabase
-        .from("activity_log")
-        .select("*")
-        .eq("property_id", propertyId)
-        .order("created_at", { ascending: false })
-        .limit(50);
-
-      if (data) {
-        setNotifications(
-          data.map((row) => ({
-            id: row.id,
-            title: row.title || "",
-            message: row.message || "",
-            time: getRelativeTime(row.created_at),
-            type: (row.type || "info") as Notification["type"],
-            read: row.read ?? true,
-            tenantId: row.tenant_id || null,
-          }))
-        );
-      }
+  const fetchNotifications = useCallback(async () => {
+    if (!propertyId) {
+      setNotifications([]);
       setLoading(false);
+      return;
     }
 
-    fetchNotifications();
+    const res = await fetch(`/api/notifications?property_id=${propertyId}`);
+    const data = await res.json();
+
+    if (Array.isArray(data)) {
+      setNotifications(data.map((n) => ({
+        id: n.id,
+        type: n.type,
+        title: n.title,
+        description: n.description,
+        tenant: n.tenant,
+        room: n.room,
+        time: getRelativeTime(n.created_at),
+        status: n.status,
+        priority: n.priority,
+        createdAt: n.created_at,
+      })));
+    }
+    setLoading(false);
   }, [propertyId]);
 
-  const baseData = mode === "tenant"
-    ? notifications.filter((n) => n.tenantId != null)
-    : notifications;
+  useEffect(() => {
+    fetchNotifications();
+  }, [fetchNotifications]);
 
-  const filtered = showUnread
-    ? baseData.filter((n) => !n.read)
-    : baseData;
+  const handleResolve = async (item: NotificationItem) => {
+    setResolvingId(item.id);
+    try {
+      await fetch("/api/notifications/resolve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: item.id, type: item.type }),
+      });
+      setNotifications((prev) =>
+        prev.map((n) => n.id === item.id ? { ...n, status: item.type === "complaint" ? "Resolved" : "completed" } : n)
+      );
+    } finally {
+      setResolvingId(null);
+    }
+  };
 
-  const unreadCount = baseData.filter((n) => !n.read).length;
+  const filtered = filter === "All"
+    ? notifications
+    : notifications.filter((n) => n.type === filter);
+
+  const activeCount = notifications.filter((n) =>
+    n.type === "complaint" ? n.status !== "Resolved" : n.status !== "completed"
+  ).length;
 
   if (loading) {
     return (
@@ -117,58 +113,100 @@ export default function NotificationsPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-slate-900">{t("notifications.title")}</h2>
-          <p className="text-sm text-slate-500 mt-1">
-            <span className="text-blue-600 font-medium">{unreadCount} {t("notifications.unread")}</span>
+          <h2 className="text-lg sm:text-xl font-bold text-slate-900">Notifications</h2>
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+            <span className="text-blue-600 font-medium">{activeCount} active</span> &middot; {notifications.length} total
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <Switch isSelected={showUnread} onChange={setShowUnread} size="sm">
-            <Switch.Content>
-              <span className="text-sm text-slate-600">{t("notifications.unreadOnly")}</span>
-            </Switch.Content>
-          </Switch>
-          <Button variant="outline" size="sm">
-            {t("common.markAllRead")}
-          </Button>
-        </div>
+      </div>
+
+      <div className="flex gap-1.5 bg-slate-100 p-1 rounded-lg w-fit">
+        {(["All", "checkout", "complaint"] as const).map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+              filter === f ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            {f === "All" ? "All" : f === "checkout" ? "Checkouts" : "Complaints"}
+          </button>
+        ))}
       </div>
 
       {filtered.length === 0 ? (
         <EmptyState
           icon={<Bell size={48} strokeWidth={1.5} />}
-          title={t("notifications.allCaughtUp")}
-          description={t("notifications.allCaughtUpDesc")}
+          title="No notifications"
+          description="You're all caught up! Checkout requests and complaints will appear here."
         />
       ) : (
-        <div className="space-y-2">
-          {filtered.map((notification, i) => {
-            const Icon = typeIcons[notification.type] || Info;
-            const colorClass = typeColors[notification.type] || typeColors.info;
+        <div className="space-y-2.5">
+          {filtered.map((item, i) => {
+            const isResolved = item.type === "complaint" ? item.status === "Resolved" : item.status === "completed";
             return (
               <Card
-                key={notification.id}
-                className={`stagger-item transition-all ${!notification.read ? "ring-1 ring-blue-200 bg-blue-50/20" : ""}`}
+                key={item.id}
+                className={`stagger-item transition-all ${isResolved ? "opacity-60" : ""}`}
                 style={{ animationDelay: `${i * 40}ms` }}
               >
                 <Card.Content className="p-4">
-                  <div className="flex items-start gap-4">
-                    <div className={`p-2 rounded-xl ${colorClass}`}>
-                      <Icon size={16} />
+                  <div className="flex items-start gap-3 sm:gap-4">
+                    <div className={`p-2 rounded-xl shrink-0 ${
+                      item.type === "checkout" ? "bg-amber-50" : item.priority === "High" ? "bg-red-50" : item.priority === "Medium" ? "bg-amber-50" : "bg-emerald-50"
+                    }`}>
+                      {item.type === "checkout" ? (
+                        <DoorOpen size={16} className="text-amber-600" />
+                      ) : (
+                        <AlertCircle size={16} className={item.priority === "High" ? "text-red-500" : item.priority === "Medium" ? "text-amber-500" : "text-emerald-500"} />
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-4">
-                        <h4 className="text-sm font-semibold text-slate-900 truncate">{notification.title}</h4>
-                        <span className="text-[11px] text-slate-400 shrink-0">{notification.time}</span>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="text-sm font-semibold text-slate-900">{item.title}</h4>
+                            <Chip size="sm" variant="soft" color={item.type === "checkout" ? "warning" : "danger"}>
+                              {item.type === "checkout" ? "Checkout" : "Complaint"}
+                            </Chip>
+                          </div>
+                          <p className="text-xs text-slate-600 mt-1">{item.description}</p>
+                          <div className="flex items-center gap-3 mt-2 text-[11px] text-slate-500">
+                            <span>{item.tenant}</span>
+                            <span>&middot;</span>
+                            <span>Room {item.room}</span>
+                            <span>&middot;</span>
+                            <span>{item.time}</span>
+                          </div>
+                        </div>
+                        <div className="shrink-0 flex items-center gap-2">
+                          {isResolved ? (
+                            <div className="flex items-center gap-1.5 text-emerald-600">
+                              <CheckCircle2 size={16} />
+                              <span className="text-xs font-medium">Resolved</span>
+                            </div>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onPress={() => handleResolve(item)}
+                              isDisabled={resolvingId === item.id}
+                              className="text-emerald-600 border-emerald-200 hover:bg-emerald-50"
+                            >
+                              {resolvingId === item.id ? (
+                                <Clock size={14} className="animate-spin" />
+                              ) : (
+                                <CheckCircle2 size={14} />
+                              )}
+                              <span className="ml-1">Resolve</span>
+                            </Button>
+                          )}
+                        </div>
                       </div>
-                      <p className="text-sm text-slate-600 mt-0.5">{notification.message}</p>
                     </div>
-                    {!notification.read && (
-                      <div className="w-2 h-2 rounded-full bg-blue-500 mt-2 shrink-0" />
-                    )}
                   </div>
                 </Card.Content>
               </Card>

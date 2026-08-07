@@ -3,6 +3,8 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { supabase } from "./supabase";
 import { usePropertyContext } from "./PropertyContext";
+import { useAuth } from "./AuthContext";
+import { useUserMode } from "./UserModeContext";
 
 export interface ComplaintComment {
   id: string;
@@ -46,40 +48,54 @@ const ComplaintContext = createContext<ComplaintContextType>({
 
 export function ComplaintProvider({ children }: { children: ReactNode }) {
   const { propertyId } = usePropertyContext();
+  const { user } = useAuth();
+  const { mode } = useUserMode();
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [loading, setLoading] = useState(true);
+  const [resolvedPropertyId, setResolvedPropertyId] = useState<string | null>(null);
 
-  const fetchComplaints = useCallback(async () => {
-    if (!propertyId) {
-      setComplaints([]);
-      setLoading(false);
+  useEffect(() => {
+    if (propertyId) {
+      setResolvedPropertyId(propertyId);
       return;
     }
+    if (mode === "tenant" && user?.id) {
+      fetch(`/api/tenant-data?userId=${user.id}`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.tenant?.property_id) {
+            setResolvedPropertyId(data.tenant.property_id);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [propertyId, mode, user?.id]);
 
-    const { data } = await supabase
-      .from("complaints")
-      .select("*, tenants(name, rooms(number))")
-      .eq("property_id", propertyId)
-      .order("created_at", { ascending: false });
+  const fetchComplaints = useCallback(async () => {
+    if (!resolvedPropertyId) return;
 
-    if (data) {
-      setComplaints(data.map((c) => ({
-        id: c.id,
-        tenantId: c.tenant_id,
-        title: c.title,
-        description: c.description || "",
+    setLoading(true);
+    const res = await fetch(`/api/complaints?property_id=${resolvedPropertyId}`);
+    const data = await res.json();
+
+    if (Array.isArray(data)) {
+      setComplaints(data.map((c: Record<string, unknown>) => ({
+        id: c.id as string,
+        tenantId: c.tenant_id as string,
+        title: c.title as string,
+        description: (c.description as string) || "",
         priority: c.priority as Complaint["priority"],
         status: c.status as Complaint["status"],
-        tenant: (c.tenants as { name: string })?.name || "",
-        room: ((c.tenants as { rooms: { number: string } | null })?.rooms as { number: string } | null)?.number || "",
-        date: c.created_at?.split("T")[0] || "",
-        time: getRelativeTime(c.created_at),
-        assignedTo: c.assigned_to || undefined,
+        tenant: (c.tenants as { name: string; rooms?: { number: string } | null } | null)?.name || "",
+        room: (c.tenants as { name: string; rooms?: { number: string } | null } | null)?.rooms?.number || "",
+        date: (c.created_at as string)?.split("T")[0] || "",
+        time: getRelativeTime(c.created_at as string),
+        assignedTo: (c.assigned_to as string) || undefined,
         comments: Array.isArray(c.comments) ? c.comments : [],
       })));
     }
     setLoading(false);
-  }, [propertyId]);
+  }, [resolvedPropertyId]);
 
   useEffect(() => {
     fetchComplaints();

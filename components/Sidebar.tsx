@@ -10,6 +10,7 @@ import {
   IndianRupee,
   CreditCard,
   MessageSquareWarning,
+  Bell,
   FileBarChart,
   Settings,
   Megaphone,
@@ -37,7 +38,8 @@ const allNavItems: NavItem[] = [
   { key: "nav.tenants", icon: "Users", href: "/tenants", ownerOnly: true },
   { key: "nav.rent", icon: "IndianRupee", href: "/rent", ownerOnly: true },
   { key: "nav.payments", icon: "CreditCard", href: "/payments", ownerOnly: true },
-  { key: "nav.complaints", icon: "MessageSquareWarning", href: "/complaints" },
+  { key: "nav.notifications", icon: "Bell", href: "/notifications", ownerOnly: true },
+  { key: "nav.complaints", icon: "MessageSquareWarning", href: "/complaints", tenantOnly: true },
   { key: "nav.myRoom", icon: "Home", href: "/my-room", tenantOnly: true },
 ];
 
@@ -49,6 +51,7 @@ const icons: Record<string, React.ComponentType<{ size?: number }>> = {
   IndianRupee,
   CreditCard,
   MessageSquareWarning,
+  Bell,
   FileBarChart,
   Megaphone,
   Wallet,

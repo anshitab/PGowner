@@ -13,7 +13,7 @@ export async function GET() {
     "properties", "rooms", "beds", "tenants", "payments",
     "rent_collection", "complaints", "visitors", "expenses",
     "announcements", "activity_log", "settings", "checkout_records",
-    "bed_transfers", "transactions",
+    "checkout_messages", "bed_transfers", "transactions",
   ];
 
   const results: Record<string, boolean> = {};

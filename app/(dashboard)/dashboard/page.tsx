@@ -26,17 +26,27 @@ export default function Dashboard() {
   const { property } = usePropertyContext();
   const [fabOpen, setFabOpen] = useState(false);
   const [recentPayments, setRecentPayments] = useState<Array<{ id: string; tenant: string; room: string; amount: number }>>([]);
-  const [tenantData, setTenantData] = useState<{ name?: string; phone?: string; email?: string; room?: string; rent?: number; joinDate?: string; property?: string; upiId?: string } | null>(null);
+  const [tenantData, setTenantData] = useState<{ id?: string; name?: string; phone?: string; email?: string; room?: string; rent?: number; joinDate?: string; property?: string; upiId?: string } | null>(null);
   const [myPayments, setMyPayments] = useState<Array<{ id: string; amount: number; date: string; method: string; verified: boolean }>>([]);
-  const [checkoutDate, setCheckoutDate] = useState("");
   const [checkoutSubmitted, setCheckoutSubmitted] = useState(false);
 
+  function getEstimatedCheckoutDate(joinDate: string | undefined): string {
+    if (!joinDate) return "";
+    const join = new Date(joinDate);
+    const joinDay = join.getDate();
+    const now = new Date();
+    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, joinDay);
+    return nextMonth.toISOString().split("T")[0];
+  }
+
+  const estimatedCheckout = getEstimatedCheckoutDate(tenantData?.joinDate);
+
   const handleCheckoutRequest = async () => {
-    if (!checkoutDate || !user?.id) return;
+    if (!estimatedCheckout || !user?.id) return;
     await fetch("/api/checkout-request", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: user.id, checkoutDate }),
+      body: JSON.stringify({ userId: user.id, checkoutDate: estimatedCheckout }),
     });
     setCheckoutSubmitted(true);
   };
@@ -81,6 +91,7 @@ export default function Dashboard() {
 
       if (data.tenant) {
         setTenantData({
+          id: data.tenant.id,
           name: data.tenant.name,
           phone: data.tenant.phone,
           email: data.tenant.email,
@@ -107,7 +118,7 @@ export default function Dashboard() {
 
   // ─── TENANT DASHBOARD ───────────────────────────────────────────────
   if (mode === "tenant") {
-    const myComplaints = complaints.filter((c) => c.tenant === user?.name && c.status !== "Resolved");
+    const myComplaints = complaints.filter((c) => c.tenantId === tenantData?.id && c.status !== "Resolved");
 
     return (
       <div className="space-y-4 sm:space-y-6">
@@ -337,22 +348,19 @@ export default function Dashboard() {
                     <p className="font-medium text-slate-800">{tenantData?.rent ? `₹${tenantData.rent.toLocaleString("en-IN")}` : "—"}</p>
                   </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1.5">Preferred Checkout Date</label>
-                  <input
-                    type="date"
-                    value={checkoutDate}
-                    onChange={(e) => setCheckoutDate(e.target.value)}
-                    min={new Date().toISOString().split("T")[0]}
-                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                  />
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                  <p className="text-[10px] text-amber-600 uppercase font-medium">Estimated Checkout Date</p>
+                  <p className="text-sm font-bold text-amber-800 mt-0.5">
+                    {estimatedCheckout ? new Date(estimatedCheckout).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }) : "—"}
+                  </p>
+                  <p className="text-[10px] text-amber-600 mt-1">Based on your join date ({tenantData?.joinDate ? new Date(tenantData.joinDate).getDate() : "—"}th of every month)</p>
                 </div>
                 <button
                   onClick={handleCheckoutRequest}
-                  disabled={!checkoutDate}
+                  disabled={!estimatedCheckout}
                   className="w-full py-2.5 bg-red-600 hover:bg-red-700 disabled:bg-slate-300 text-white text-sm font-semibold rounded-xl transition-colors"
                 >
-                  Submit Checkout Request
+                  Request Checkout
                 </button>
               </div>
             )}
@@ -527,6 +535,44 @@ export default function Dashboard() {
           </div>
         </div>
       </section>
+
+      {/* Recent Complaints */}
+      {complaints.filter((c) => c.status !== "Resolved").length > 0 && (
+        <section>
+          <div className="space-y-4">
+            <h2 className="text-lg font-bold text-slate-900">Recent Complaints</h2>
+            <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+              <div className="divide-y divide-slate-100">
+                {complaints
+                  .filter((c) => c.status !== "Resolved")
+                  .slice(0, 5)
+                  .map((c) => (
+                    <div key={c.id} className="px-4 py-3 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold ${c.priority === "High" ? "bg-red-100 text-red-700" : c.priority === "Medium" ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"}`}>
+                          {c.priority[0]}
+                        </div>
+                        <div>
+                          <p className="text-xs font-medium text-slate-800">{c.title}</p>
+                          <p className="text-[10px] text-slate-500">{c.tenant} &middot; Room {c.room}</p>
+                        </div>
+                      </div>
+                      <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${c.status === "Open" ? "bg-red-50 text-red-600" : "bg-amber-50 text-amber-600"}`}>
+                        {c.status}
+                      </span>
+                    </div>
+                  ))}
+              </div>
+              <Link
+                href="/notifications"
+                className="block w-full py-2.5 text-center text-xs text-indigo-600 font-semibold hover:bg-indigo-50/50 transition-colors border-t border-slate-100"
+              >
+                View All Notifications
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Floating Action Button */}
       <div className="fixed bottom-4 right-4 sm:bottom-8 sm:right-8 flex flex-col items-end gap-2 z-50">

@@ -71,6 +71,7 @@ export async function GET(request: Request) {
     upiId: settingsData?.upi_id || "",
     tenant: {
       id: tenant.id,
+      property_id: tenant.property_id,
       name: tenant.name,
       phone: tenant.phone,
       email: tenant.email,

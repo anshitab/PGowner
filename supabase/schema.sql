@@ -101,6 +101,8 @@ CREATE TABLE complaints (
   description text DEFAULT '',
   priority text NOT NULL DEFAULT 'Medium',
   status text NOT NULL DEFAULT 'Open',
+  assigned_to text,
+  comments jsonb DEFAULT '[]'::jsonb,
   created_at timestamptz DEFAULT now()
 );
 
@@ -197,6 +199,16 @@ CREATE TABLE checkout_records (
   created_at timestamptz DEFAULT now()
 );
 
+-- Checkout Messages table (tenant-owner chat about checkout)
+CREATE TABLE checkout_messages (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  property_id uuid NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+  tenant_id uuid NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  from_role text NOT NULL DEFAULT 'tenant',
+  message text NOT NULL,
+  created_at timestamptz DEFAULT now()
+);
+
 -- Bed Transfers table
 CREATE TABLE bed_transfers (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -242,6 +254,7 @@ ALTER TABLE announcements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE activity_log ENABLE ROW LEVEL SECURITY;
 ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE checkout_records ENABLE ROW LEVEL SECURITY;
+ALTER TABLE checkout_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE bed_transfers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
 
@@ -299,6 +312,14 @@ CREATE POLICY "owner_checkout_records" ON checkout_records FOR ALL USING (
   property_id IN (SELECT id FROM properties WHERE owner_id = auth.uid())
 );
 
+CREATE POLICY "owner_checkout_messages" ON checkout_messages FOR ALL USING (
+  property_id IN (SELECT id FROM properties WHERE owner_id = auth.uid())
+);
+
+CREATE POLICY "tenant_checkout_messages" ON checkout_messages FOR ALL USING (
+  tenant_id IN (SELECT id FROM tenants WHERE user_id = auth.uid())
+);
+
 CREATE POLICY "owner_bed_transfers" ON bed_transfers FOR ALL USING (
   property_id IN (SELECT id FROM properties WHERE owner_id = auth.uid())
 );
@@ -317,6 +338,10 @@ CREATE POLICY "tenant_read_own" ON tenants FOR SELECT USING (user_id = auth.uid(
 
 CREATE POLICY "tenant_read_own_room" ON rooms FOR SELECT USING (
   id IN (SELECT room_id FROM tenants WHERE user_id = auth.uid())
+);
+
+CREATE POLICY "tenant_read_own_beds" ON beds FOR SELECT USING (
+  room_id IN (SELECT room_id FROM tenants WHERE user_id = auth.uid())
 );
 
 CREATE POLICY "tenant_read_property" ON properties FOR SELECT USING (

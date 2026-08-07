@@ -8,8 +8,8 @@ import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useUserMode } from "@/lib/UserModeContext";
 import { useAuth } from "@/lib/AuthContext";
 import { useComplaints, Complaint } from "@/lib/ComplaintContext";
-import { supabase } from "@/lib/supabase";
 import ComplaintDetailModal from "@/components/complaints/ComplaintDetailModal";
+import { useRouter } from "next/navigation";
 
 const statusIcons: Record<string, typeof AlertCircle> = {
   Open: AlertCircle,
@@ -32,10 +32,15 @@ const priorityColor: Record<string, "danger" | "warning" | "success"> = {
 };
 
 export default function ComplaintsPage() {
-  const { complaints, updateStatus, addComplaint } = useComplaints();
+  const { complaints, updateStatus, refetch } = useComplaints();
   const { t } = useLanguage();
   const { mode } = useUserMode();
   const { user } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (mode === "owner") router.replace("/notifications");
+  }, [mode, router]);
 
   const [statusFilter, setStatusFilter] = useState<"All" | "Open" | "In Progress" | "Resolved" | "Closed">("All");
   const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null);
@@ -51,42 +56,48 @@ export default function ComplaintsPage() {
   useEffect(() => {
     if (!user || mode !== "tenant") return;
     (async () => {
-      const { data } = await supabase
-        .from("tenants")
-        .select("id, name, rooms(number)")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (data) {
+      const params = new URLSearchParams({ userId: user.id, email: user.email });
+      const res = await fetch(`/api/tenant-data?${params}`);
+      const data = await res.json();
+      if (data.tenant) {
         setTenantData({
-          id: data.id,
-          name: data.name,
-          room: (data.rooms as unknown as { number: string } | null)?.number || "",
+          id: data.tenant.id,
+          name: data.tenant.name,
+          room: data.tenant.room || "",
         });
       }
     })();
   }, [user, mode]);
 
   const handleSubmitComplaint = async () => {
-    if (!newTitle.trim() || !tenantData) return;
+    if (!newTitle.trim() || !user) return;
     setSubmittingComplaint(true);
-    await addComplaint({
-      tenantId: tenantData.id,
-      title: newTitle.trim(),
-      description: newDescription.trim(),
-      priority: newPriority,
-      status: "Open",
-      tenant: tenantData.name,
-      room: tenantData.room,
-    });
-    setNewTitle("");
-    setNewDescription("");
-    setNewPriority("Medium");
-    setSubmittingComplaint(false);
-    modalState.close();
+    try {
+      const res = await fetch("/api/complaints", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user.id,
+          title: newTitle.trim(),
+          description: newDescription.trim(),
+          priority: newPriority,
+        }),
+      });
+      if (res.ok) {
+        // Refetch complaints to show the new one
+        await refetch();
+        setNewTitle("");
+        setNewDescription("");
+        setNewPriority("Medium");
+        modalState.close();
+      }
+    } finally {
+      setSubmittingComplaint(false);
+    }
   };
 
   const baseData = mode === "tenant"
-    ? complaints.filter((c) => c.tenant === user?.name)
+    ? complaints.filter((c) => c.tenantId === tenantData?.id)
     : complaints;
 
   const filtered = baseData.filter(
@@ -205,7 +216,7 @@ export default function ComplaintsPage() {
 
       {modalState.isOpen && (
         <Modal state={modalState}>
-          <Modal.Backdrop isDismissable variant="blur" onClick={() => modalState.close()}>
+          <Modal.Backdrop variant="blur">
             <Modal.Container size="md" placement="center">
               <Modal.Dialog aria-label="Log Complaint">
                 <Modal.Header>
