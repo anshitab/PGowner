@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import nodemailer from "nodemailer";
+import { isEmailConfigured, sendEmail, transactionalEmail } from "@/lib/email";
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY || "";
 const GROQ_BASE_URL = "https://api.groq.com/openai/v1/chat/completions";
@@ -139,9 +139,7 @@ export async function POST(request: Request) {
 }
 
 async function notifyOwner(propertyId: string, tenantId: string, amount: number, utr: string) {
-  const gmailUser = process.env.GMAIL_USER;
-  const gmailAppPassword = process.env.GMAIL_APP_PASSWORD;
-  if (!gmailUser || !gmailAppPassword) return;
+  if (!isEmailConfigured()) return;
 
   // Get owner email
   const { data: property } = await supabaseAdmin
@@ -176,61 +174,31 @@ async function notifyOwner(propertyId: string, tenantId: string, amount: number,
     roomNumber = room?.number || "";
   }
 
-  const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: { user: gmailUser, pass: gmailAppPassword },
+  const amountLabel = `Rs. ${Number(amount).toLocaleString("en-IN")}`;
+  const dateLabel = new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+  const html = transactionalEmail({
+    preheader: `${tenantName} paid ${amountLabel} for ${property.name}.`,
+    title: "Tenant payment recorded",
+    bodyHtml: `
+      <p style="margin:0 0 12px 0;">A tenant payment was recorded for <strong>${property.name}</strong>.</p>
+      <p style="margin:0 0 6px 0;"><strong>Tenant:</strong> ${tenantName}${roomNumber ? ` (Room ${roomNumber})` : ""}</p>
+      <p style="margin:0 0 6px 0;"><strong>Amount:</strong> ${amountLabel}</p>
+      <p style="margin:0 0 6px 0;"><strong>Method:</strong> UPI</p>
+      ${utr ? `<p style="margin:0 0 6px 0;"><strong>Reference:</strong> ${utr}</p>` : ""}
+      <p style="margin:0 0 6px 0;"><strong>Date:</strong> ${dateLabel}</p>
+      <p style="margin:12px 0 0 0;color:#64748b;font-size:13px;">Verified from the tenant payment screenshot in ProManage.</p>
+    `,
+    reason: `Sent because you are the owner of ${property.name}.`,
   });
 
-  const html = `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 500px; margin: 0 auto; padding: 32px 24px;">
-      <div style="text-align: center; margin-bottom: 24px;">
-        <div style="width: 48px; height: 48px; background: #dcfce7; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 12px;">
-          <span style="font-size: 24px;">✓</span>
-        </div>
-        <h2 style="color: #1e293b; margin: 0;">Payment Received</h2>
-        <p style="color: #64748b; font-size: 14px; margin-top: 4px;">${property.name}</p>
-      </div>
-
-      <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
-        <table style="width: 100%; border-collapse: collapse;">
-          <tr>
-            <td style="color: #64748b; font-size: 13px; padding: 6px 0;">Tenant</td>
-            <td style="color: #1e293b; font-size: 13px; font-weight: 600; text-align: right;">${tenantName}${roomNumber ? ` (Room ${roomNumber})` : ""}</td>
-          </tr>
-          <tr>
-            <td style="color: #64748b; font-size: 13px; padding: 6px 0;">Amount</td>
-            <td style="color: #16a34a; font-size: 16px; font-weight: 700; text-align: right;">₹${Number(amount).toLocaleString("en-IN")}</td>
-          </tr>
-          <tr>
-            <td style="color: #64748b; font-size: 13px; padding: 6px 0;">Method</td>
-            <td style="color: #1e293b; font-size: 13px; font-weight: 600; text-align: right;">UPI</td>
-          </tr>
-          ${utr ? `<tr><td style="color: #64748b; font-size: 13px; padding: 6px 0;">UTR</td><td style="color: #1e293b; font-size: 13px; text-align: right;">${utr}</td></tr>` : ""}
-          <tr>
-            <td style="color: #64748b; font-size: 13px; padding: 6px 0;">Date</td>
-            <td style="color: #1e293b; font-size: 13px; text-align: right;">${new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</td>
-          </tr>
-          <tr>
-            <td style="color: #64748b; font-size: 13px; padding: 6px 0;">Verified by</td>
-            <td style="color: #1e293b; font-size: 13px; text-align: right;">AI (Screenshot)</td>
-          </tr>
-        </table>
-      </div>
-
-      <div style="border-top: 1px solid #e2e8f0; padding-top: 16px;">
-        <p style="color: #94a3b8; font-size: 11px; text-align: center; margin: 0;">
-          Sent via ProManage · Payment auto-verified from tenant screenshot
-        </p>
-      </div>
-    </div>
-  `;
-
   try {
-    await transporter.sendMail({
-      from: `ProManage <${gmailUser}>`,
+    await sendEmail({
       to: ownerEmail,
-      subject: `Payment Received — ₹${Number(amount).toLocaleString("en-IN")} from ${tenantName}`,
+      toName: "PG Owner",
+      subject: `Payment from ${tenantName} at ${property.name}`,
       html,
+      category: "payment",
+      fromName: "ProManage Billing",
     });
   } catch (err) {
     console.error("Failed to send owner notification:", err);

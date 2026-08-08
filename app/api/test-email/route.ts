@@ -1,35 +1,43 @@
 import { NextResponse } from "next/server";
+import { isEmailConfigured, sendEmail, transactionalEmail } from "@/lib/email";
 
 export async function GET() {
-  const apiKey = process.env.MAILJET_API_KEY;
-  const secretKey = process.env.MAILJET_SECRET_KEY;
-  const senderEmail = process.env.MAILJET_SENDER_EMAIL || "anshitabathla33@gmail.com";
+  if (!isEmailConfigured()) {
+    return NextResponse.json(
+      {
+        error:
+          "No email provider configured. Set Mailjet (MAILJET_*) and/or Gmail (GMAIL_USER, GMAIL_APP_PASSWORD).",
+      },
+      { status: 500 }
+    );
+  }
 
-  if (!apiKey || !secretKey) {
-    return NextResponse.json({ error: "MAILJET_API_KEY or MAILJET_SECRET_KEY not set" }, { status: 500 });
+  const to =
+    process.env.MAILJET_SENDER_EMAIL ||
+    process.env.GMAIL_USER;
+
+  if (!to) {
+    return NextResponse.json({ error: "No sender/test recipient email configured" }, { status: 500 });
   }
 
   try {
-    const response = await fetch("https://api.mailjet.com/v3.1/send", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: "Basic " + Buffer.from(`${apiKey}:${secretKey}`).toString("base64"),
-      },
-      body: JSON.stringify({
-        Messages: [
-          {
-            From: { Email: senderEmail, Name: "ProManage Test" },
-            To: [{ Email: senderEmail, Name: "Test" }],
-            Subject: "ProManage Email Test",
-            HTMLPart: "<h3>Email is working!</h3><p>If you see this, Mailjet is configured correctly.</p>",
-          },
-        ],
+    const data = await sendEmail({
+      to,
+      toName: "ProManage",
+      subject: "ProManage mail configuration check",
+      html: transactionalEmail({
+        preheader: "Your ProManage email setup is working.",
+        title: "Mail configuration check",
+        bodyHtml: `
+          <p style="margin:0 0 12px 0;">This is a test message from ProManage.</p>
+          <p style="margin:0;">Mailjet is tried first; Gmail SMTP is used automatically if Mailjet fails.</p>
+        `,
+        reason: "Sent because someone requested a mail configuration test.",
       }),
+      category: "test",
+      fromName: "ProManage Accounts",
     });
-
-    const data = await response.json();
-    return NextResponse.json({ status: response.status, response: data });
+    return NextResponse.json({ status: 200, response: data });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });

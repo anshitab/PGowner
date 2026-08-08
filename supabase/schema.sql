@@ -272,6 +272,8 @@ CREATE POLICY "owner_beds" ON beds FOR ALL USING (
   property_id IN (SELECT id FROM properties WHERE owner_id = auth.uid())
 );
 
+-- Owners can manage tenants for their properties.
+-- Tenant creation is also gated in /api/tenants/create until verification_status = 'verified'.
 CREATE POLICY "owner_tenants" ON tenants FOR ALL USING (
   property_id IN (SELECT id FROM properties WHERE owner_id = auth.uid())
 );

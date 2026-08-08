@@ -4,12 +4,13 @@ import { createContext, useContext, useState, useEffect, useCallback, ReactNode 
 import { supabase } from "./supabase";
 import type { User, Session } from "@supabase/supabase-js";
 
-export type AuthRole = "owner" | "tenant";
+export type AuthRole = "owner" | "tenant" | "super_admin";
 
 export interface AuthUser {
   id: string;
   name: string;
   email: string;
+  phone?: string;
   role: AuthRole;
   propertyId?: string;
 }
@@ -19,8 +20,9 @@ interface AuthContextType {
   user: AuthUser | null;
   loading: boolean;
   signUp: (email: string, password: string, name: string, role: AuthRole) => Promise<{ error?: string; needsVerification?: boolean }>;
-  signIn: (email: string, password: string) => Promise<{ error?: string }>;
+  signIn: (email: string, password: string) => Promise<{ error?: string; role?: AuthRole }>;
   signOut: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -30,26 +32,61 @@ const AuthContext = createContext<AuthContextType>({
   signUp: async () => ({}),
   signIn: async () => ({}),
   signOut: async () => {},
+  refreshUser: async () => {},
 });
 
 function mapUser(supaUser: User): AuthUser {
   const meta = supaUser.user_metadata || {};
+  const role = (meta.role as AuthRole) || "owner";
   return {
     id: supaUser.id,
     name: meta.name || supaUser.email?.split("@")[0] || "User",
     email: supaUser.email || "",
-    role: (meta.role as AuthRole) || "owner",
+    phone: typeof meta.phone === "string" ? meta.phone : "",
+    role: role === "super_admin" || role === "tenant" || role === "owner" ? role : "owner",
     propertyId: meta.property_id,
   };
+}
+
+async function ensureSuperAdminRole(accessToken: string) {
+  try {
+    await fetch("/api/admin/ensure-role", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+  } catch {
+    // non-blocking
+  }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const refreshUser = useCallback(async () => {
+    const { data: { user: latest } } = await supabase.auth.getUser();
+    if (latest) {
+      setUser(mapUser(latest));
+      return;
+    }
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      setUser(mapUser(session.user));
+    }
+  }, []);
+
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user) {
+        if (session.access_token) {
+          await ensureSuperAdminRole(session.access_token);
+          const { data: refreshed } = await supabase.auth.getUser();
+          if (refreshed.user) {
+            setUser(mapUser(refreshed.user));
+            setLoading(false);
+            return;
+          }
+        }
         setUser(mapUser(session.user));
       }
       setLoading(false);
@@ -69,6 +106,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signUp = useCallback(async (email: string, password: string, name: string, role: AuthRole) => {
+    if (role === "super_admin") {
+      return { error: "Invalid signup role" };
+    }
     const redirectUrl = typeof window !== "undefined"
       ? `${window.location.origin}/auth/callback`
       : "http://localhost:3000/auth/callback";
@@ -117,6 +157,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .eq("email", email)
           .is("user_id", null);
       }
+
+      if (data.session.access_token) {
+        await ensureSuperAdminRole(data.session.access_token);
+        await supabase.auth.refreshSession();
+        const { data: refreshed } = await supabase.auth.getUser();
+        if (refreshed.user) {
+          const mapped = mapUser(refreshed.user);
+          setUser(mapped);
+          return { role: mapped.role };
+        }
+      }
+
+      const mapped = mapUser(data.session.user);
+      setUser(mapped);
+      return { role: mapped.role };
     }
 
     return {};
@@ -128,7 +183,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated: !!user, user, loading, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ isAuthenticated: !!user, user, loading, signUp, signIn, signOut, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );
