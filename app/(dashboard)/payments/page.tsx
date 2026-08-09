@@ -1,8 +1,8 @@
 "use client";
 
-import { Search, Download, CheckCircle, Edit3, CheckCircle2, Clock, XCircle, IndianRupee, ArrowUpRight } from "lucide-react";
+import { Search, CheckCircle, Edit3, CheckCircle2, Clock, XCircle, IndianRupee, ArrowUpRight } from "lucide-react";
 import { useState, useEffect } from "react";
-import { Card, Chip, Button } from "@heroui/react";
+import { Card, Chip } from "@heroui/react";
 import EmptyState from "@/components/EmptyState";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useUserMode } from "@/lib/UserModeContext";
@@ -110,15 +110,9 @@ export default function PaymentsPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-bold text-slate-900">{t("payments.title")}</h2>
-          <p className="text-sm text-slate-500 mt-1">{t("payments.subtitle")}</p>
-        </div>
-        <Button variant="outline" size="sm">
-          <Download size={14} />
-          {t("common.export")}
-        </Button>
+      <div>
+        <h2 className="text-xl font-bold text-slate-900">{t("payments.title")}</h2>
+        <p className="text-sm text-slate-500 mt-1">{t("payments.subtitle")}</p>
       </div>
 
       {/* Tabs */}
@@ -144,17 +138,11 @@ export default function PaymentsPage() {
       {tab === "payments" ? (
         <>
           {/* Payment KPIs */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card>
               <Card.Content className="p-4">
                 <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1">{t("payments.totalTransactions")}</p>
                 <p className="text-2xl font-bold text-slate-900">{payments.length}</p>
-              </Card.Content>
-            </Card>
-            <Card>
-              <Card.Content className="p-4">
-                <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1">{t("payments.verifiedRazorpay")}</p>
-                <p className="text-2xl font-bold text-emerald-600">{payments.filter((p) => p.verified).length}</p>
               </Card.Content>
             </Card>
             <Card>
