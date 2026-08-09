@@ -373,15 +373,36 @@ export default function MyRoomPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
-                    <p className="text-[10px] text-slate-500 uppercase font-medium mb-0.5">Estimated Checkout Date</p>
-                    <p className="text-sm font-semibold text-slate-800">
-                      {checkoutDate ? new Date(checkoutDate + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }) : "-"}
-                    </p>
+                  <div>
+                    <label className="block text-[10px] text-slate-500 uppercase font-medium mb-1.5">
+                      Checkout date
+                    </label>
+                    <input
+                      type="date"
+                      value={checkoutDate}
+                      min={new Date().toISOString().split("T")[0]}
+                      onChange={(e) => setCheckoutDate(e.target.value)}
+                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-400"
+                    />
                     {joinDate && (
-                      <p className="text-[10px] text-slate-400 mt-1">
-                        Based on your join date ({new Date(joinDate + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}) — same day, next month
-                      </p>
+                      <div className="mt-2 flex items-start justify-between gap-2">
+                        <p className="text-[11px] text-slate-400 leading-snug">
+                          Suggested:{" "}
+                          {new Date(getEstimatedCheckoutDate(joinDate) + "T00:00:00").toLocaleDateString("en-IN", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          })}{" "}
+                          (same day next month from join date)
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setCheckoutDate(getEstimatedCheckoutDate(joinDate))}
+                          className="shrink-0 text-[11px] font-medium text-indigo-600 hover:text-indigo-700"
+                        >
+                          Use suggested
+                        </button>
+                      </div>
                     )}
                   </div>
                   <Button

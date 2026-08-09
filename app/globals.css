@@ -1,10 +1,10 @@
 @import "tailwindcss";
-@import "../node_modules/tw-animate-css/dist/tw-animate.css";
-@import "../node_modules/@heroui/styles/dist/utilities/index.css";
-@import "../node_modules/@heroui/styles/dist/base/base.css";
-@import "../node_modules/@heroui/styles/dist/themes/default/index.css";
-@import "../node_modules/@heroui/styles/dist/components/index.css";
-@import "../node_modules/@heroui/styles/dist/variants/index.css";
+@import "tw-animate-css";
+@import "@heroui/styles/utilities";
+@import "@heroui/styles/base";
+@import "@heroui/styles/themes/default";
+@import "@heroui/styles/components/index.css";
+@import "@heroui/styles/variants";
 
 :root {
   --background: #f8fafc;

@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { usePGConfig, PGConfig, PGRoom, PGBed } from "@/lib/PGConfigContext";
 import { usePropertyContext } from "@/lib/PropertyContext";
+import { useAuth } from "@/lib/AuthContext";
 import ConfigReview from "@/components/setup/ConfigReview";
 import { Building2, Pencil, ArrowRight, ArrowLeft, Plus, Minus } from "lucide-react";
 import { Button } from "@heroui/react";
@@ -23,6 +24,7 @@ function SetupContent() {
   const isAddMode = searchParams.get("add") === "true";
   const { setConfig, isSetupComplete } = usePGConfig();
   const { loading: propLoading } = usePropertyContext();
+  const { isAuthenticated, user, loading: authLoading } = useAuth();
 
   // Form state
   const [name, setName] = useState("");
@@ -47,10 +49,23 @@ function SetupContent() {
   const [generatedConfig, setGeneratedConfig] = useState<PGConfig | null>(null);
 
   useEffect(() => {
+    if (authLoading) return;
+    if (!isAuthenticated || user?.role !== "owner") {
+      router.replace("/login?role=owner");
+      return;
+    }
     if (!propLoading && isSetupComplete && !isAddMode) {
       router.replace("/dashboard");
     }
-  }, [isSetupComplete, propLoading, router, isAddMode]);
+  }, [isSetupComplete, propLoading, router, isAddMode, authLoading, isAuthenticated, user]);
+
+  if (authLoading || !isAuthenticated || user?.role !== "owner") {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
+      </div>
+    );
+  }
 
   useEffect(() => {
     setPerFloorRooms((prev) => {

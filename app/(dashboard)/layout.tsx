@@ -61,13 +61,18 @@ export default function DashboardLayout({
       router.replace("/");
       return;
     }
+    if (user?.role === "super_admin" || mode === "super_admin") {
+      router.replace("/admin");
+      return;
+    }
     if (mode === "owner" && !property) {
       router.replace("/setup");
     }
-  }, [isAuthenticated, authLoading, propLoading, property, mode, router]);
+  }, [isAuthenticated, authLoading, propLoading, property, mode, router, user]);
 
   if (authLoading || propLoading) return null;
   if (!isAuthenticated) return null;
+  if (user?.role === "super_admin" || mode === "super_admin") return null;
   if (mode === "owner" && !property) return null;
 
   return (

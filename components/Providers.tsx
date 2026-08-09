@@ -1,5 +1,6 @@
 "use client";
 
+import { Toaster } from "sonner";
 import { LanguageProvider } from "@/lib/i18n/LanguageContext";
 import { UserModeProvider } from "@/lib/UserModeContext";
 import { AuthProvider } from "@/lib/AuthContext";
@@ -12,6 +13,7 @@ import { BedProvider } from "@/lib/BedContext";
 import { RoomProvider } from "@/lib/RoomContext";
 import { CheckoutProvider } from "@/lib/CheckoutContext";
 import { ActivityProvider } from "@/lib/ActivityContext";
+
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
     <AuthProvider>
@@ -25,7 +27,15 @@ export default function Providers({ children }: { children: React.ReactNode }) {
                         <ComplaintProvider>
                           <BedProvider>
                             <RoomProvider>
-                              <CheckoutProvider>{children}</CheckoutProvider>
+                              <CheckoutProvider>
+                                {children}
+                                <Toaster
+                                  position="top-right"
+                                  richColors
+                                  closeButton
+                                  toastOptions={{ duration: 3500 }}
+                                />
+                              </CheckoutProvider>
                             </RoomProvider>
                           </BedProvider>
                         </ComplaintProvider>

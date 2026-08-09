@@ -64,6 +64,13 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    if (user.role === "super_admin") {
+      setProperty(null);
+      setProperties([]);
+      setLoading(false);
+      return;
+    }
+
     if (user.role === "tenant") {
       const { data: tenant } = await supabase
         .from("tenants")

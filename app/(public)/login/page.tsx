@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Building2, Eye, EyeOff, User } from "lucide-react";
+import { Building2, Eye, EyeOff, User, MailCheck, ArrowLeft } from "lucide-react";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useAuth, AuthRole } from "@/lib/AuthContext";
 import { motion } from "motion/react";
@@ -17,7 +17,7 @@ export default function LoginPage() {
 
 function LoginContent() {
   const { t } = useLanguage();
-  const { signIn, signUp, isAuthenticated, loading } = useAuth();
+  const { signIn, loading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -30,8 +30,32 @@ function LoginContent() {
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [signUpSuccess, setSignUpSuccess] = useState(false);
+  const [otpStep, setOtpStep] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [challengeToken, setChallengeToken] = useState("");
+  const [resendCooldown, setResendCooldown] = useState(0);
 
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const id = window.setTimeout(() => setResendCooldown((c) => c - 1), 1000);
+    return () => window.clearTimeout(id);
+  }, [resendCooldown]);
+
+  const sendOwnerOtp = async () => {
+    const res = await fetch("/api/auth/send-otp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email.trim(), name: name.trim() }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || "Failed to send verification code");
+    }
+    setChallengeToken(data.challengeToken);
+    setOtp("");
+    setOtpStep(true);
+    setResendCooldown(30);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,26 +77,63 @@ function LoginContent() {
     setSubmitting(true);
     try {
       if (isSignUp && activeTab === "owner") {
-        const result = await signUp(email, password, name, "owner");
-        if (result.error) {
-          setError(result.error);
-        } else if (result.needsVerification) {
-          setSignUpSuccess(true);
-          setIsSignUp(false);
-          setName("");
-          setEmail("");
-          setPassword("");
+        if (!otpStep) {
+          await sendOwnerOtp();
         } else {
-          router.replace("/dashboard");
+          if (!/^\d{6}$/.test(otp.trim())) {
+            setError("Enter the 6-digit code sent to your email");
+            return;
+          }
+          const verifyRes = await fetch("/api/auth/verify-otp", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: email.trim(),
+              password,
+              otp: otp.trim(),
+              challengeToken,
+            }),
+          });
+          const verifyData = await verifyRes.json();
+          if (!verifyRes.ok) {
+            setError(verifyData.error || "Verification failed");
+            return;
+          }
+
+          const result = await signIn(email.trim(), password);
+          if (result.error) {
+            setError(result.error);
+            return;
+          }
+          router.replace(result.role === "super_admin" ? "/admin" : "/setup");
         }
       } else {
         const result = await signIn(email, password);
         if (result.error) {
           setError(result.error);
+        } else if (result.role === "super_admin") {
+          router.replace("/admin");
+        } else if (result.role === "tenant") {
+          router.replace("/dashboard");
         } else {
           router.replace("/dashboard");
         }
       }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (resendCooldown > 0 || submitting) return;
+    setError("");
+    setSubmitting(true);
+    try {
+      await sendOwnerOtp();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to resend code");
     } finally {
       setSubmitting(false);
     }
@@ -169,10 +230,17 @@ function LoginContent() {
         <div className="w-full max-w-md">
           {/* Logo */}
 
-          {isSignUp && isOwner ? (
+          {isSignUp && isOwner && otpStep ? (
+            <>
+              <h1 className="text-2xl font-bold text-slate-900">Verify your email</h1>
+              <p className="mt-1 text-sm text-slate-500">
+                Enter the 6-digit code we sent to <span className="font-medium text-slate-700">{email}</span>
+              </p>
+            </>
+          ) : isSignUp && isOwner ? (
             <>
               <h1 className="text-2xl font-bold text-slate-900">Create Owner Account</h1>
-              <p className="mt-1 text-sm text-slate-500">Set up your PG management account</p>
+              <p className="mt-1 text-sm text-slate-500">We’ll verify your email before PG setup</p>
             </>
           ) : isOwner ? (
             <>
@@ -246,79 +314,122 @@ function LoginContent() {
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-            {isSignUp && isOwner && (
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Full Name
-                </label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Your full name"
-                  className={`w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 transition-all ${
-                    isOwner ? "focus:ring-blue-500/20 focus:border-blue-500" : "focus:ring-emerald-500/20 focus:border-emerald-500"
-                  }`}
-                />
-              </div>
-            )}
+            {isSignUp && isOwner && otpStep ? (
+              <>
+                <div className="flex justify-center">
+                  <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center">
+                    <MailCheck className="text-blue-600" size={28} />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Verification code
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={6}
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    placeholder="••••••"
+                    className="w-full px-3.5 py-3 border border-slate-200 rounded-xl text-center text-2xl tracking-[0.4em] font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  />
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOtpStep(false);
+                      setOtp("");
+                      setChallengeToken("");
+                      setError("");
+                    }}
+                    className="inline-flex items-center gap-1 text-slate-500 hover:text-slate-700"
+                  >
+                    <ArrowLeft size={14} />
+                    Back
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleResendOtp}
+                    disabled={resendCooldown > 0 || submitting}
+                    className="text-blue-600 font-medium hover:text-blue-700 disabled:text-slate-400 disabled:cursor-not-allowed"
+                  >
+                    {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend code"}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                {isSignUp && isOwner && (
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      Full Name
+                    </label>
+                    <input
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Your full name"
+                      className={`w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 transition-all ${
+                        isOwner ? "focus:ring-blue-500/20 focus:border-blue-500" : "focus:ring-emerald-500/20 focus:border-emerald-500"
+                      }`}
+                    />
+                  </div>
+                )}
 
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                {t("login.email")}
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                className={`w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 transition-all ${
-                  isOwner ? "focus:ring-blue-500/20 focus:border-blue-500" : "focus:ring-emerald-500/20 focus:border-emerald-500"
-                }`}
-              />
-            </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    {t("login.email")}
+                  </label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    className={`w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 transition-all ${
+                      isOwner ? "focus:ring-blue-500/20 focus:border-blue-500" : "focus:ring-emerald-500/20 focus:border-emerald-500"
+                    }`}
+                  />
+                </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                {t("login.password")}
-              </label>
-              <div className="relative">
-                <input
-                  type={showPw ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder={isSignUp ? "Min 6 characters" : "Enter your password"}
-                  className={`w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 transition-all pr-10 ${
-                    isOwner ? "focus:ring-blue-500/20 focus:border-blue-500" : "focus:ring-emerald-500/20 focus:border-emerald-500"
-                  }`}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPw(!showPw)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                >
-                  {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-            </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    {t("login.password")}
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPw ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder={isSignUp ? "Min 6 characters" : "Enter your password"}
+                      className={`w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 transition-all pr-10 ${
+                        isOwner ? "focus:ring-blue-500/20 focus:border-blue-500" : "focus:ring-emerald-500/20 focus:border-emerald-500"
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPw(!showPw)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
 
-            {!isSignUp && isOwner && (
-              <div className="flex items-center justify-between">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" className={`w-4 h-4 rounded border-slate-300 ${isOwner ? "text-blue-600 focus:ring-blue-500" : "text-emerald-600 focus:ring-emerald-500"}`} />
-                  <span className="text-sm text-slate-600">{t("login.remember")}</span>
-                </label>
-                <button type="button" className={`text-sm font-medium ${isOwner ? "text-blue-600 hover:text-blue-700" : "text-emerald-600 hover:text-emerald-700"}`}>
-                  {t("login.forgot")}
-                </button>
-              </div>
-            )}
-
-            {signUpSuccess && (
-              <div className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3">
-                <p className="font-medium">Account created successfully!</p>
-                <p className="mt-1 text-emerald-600">Check your email for a verification link, then sign in below.</p>
-              </div>
+                {!isSignUp && isOwner && (
+                  <div className="flex items-center justify-between">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" className={`w-4 h-4 rounded border-slate-300 ${isOwner ? "text-blue-600 focus:ring-blue-500" : "text-emerald-600 focus:ring-emerald-500"}`} />
+                      <span className="text-sm text-slate-600">{t("login.remember")}</span>
+                    </label>
+                    <button type="button" className={`text-sm font-medium ${isOwner ? "text-blue-600 hover:text-blue-700" : "text-emerald-600 hover:text-emerald-700"}`}>
+                      {t("login.forgot")}
+                    </button>
+                  </div>
+                )}
+              </>
             )}
 
             {error && (
@@ -336,15 +447,27 @@ function LoginContent() {
                   : "bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-emerald-500/25"
               }`}
             >
-              {submitting ? "Please wait..." : isSignUp && isOwner ? "Create Account" : t("login.submit")}
+              {submitting
+                ? "Please wait..."
+                : isSignUp && isOwner && otpStep
+                  ? "Verify & continue"
+                  : isSignUp && isOwner
+                    ? "Send verification code"
+                    : t("login.submit")}
             </button>
           </form>
 
-          {isOwner && (
+          {isOwner && !otpStep && (
             <p className="mt-6 text-center text-sm text-slate-500">
               {isSignUp ? "Already have an account?" : t("login.noAccount")}{" "}
               <button
-                onClick={() => { setIsSignUp(!isSignUp); setError(""); setSignUpSuccess(false); }}
+                onClick={() => {
+                  setIsSignUp(!isSignUp);
+                  setError("");
+                  setOtpStep(false);
+                  setOtp("");
+                  setChallengeToken("");
+                }}
                 className="text-blue-600 font-medium hover:text-blue-700"
               >
                 {isSignUp ? "Sign In" : t("login.signUp")}

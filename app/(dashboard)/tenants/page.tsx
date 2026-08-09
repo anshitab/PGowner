@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Search, Phone, Mail, CheckCircle, Pencil, LogOut, Lock } from "lucide-react";
+import { Plus, Search, Phone, Mail, CheckCircle, Pencil, LogOut, Lock, ShieldAlert } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Card, Chip, Button, Avatar, AvatarFallback, Modal, useOverlayState } from "@heroui/react";
 import EmptyState from "@/components/EmptyState";
@@ -157,6 +157,12 @@ export default function TenantsPage() {
     return c === 0;
   };
 
+  const isPropertyVerified = property?.verification_status === "verified";
+  const verificationBlockedMessage =
+    property?.verification_status === "rejected"
+      ? "This property was rejected by ProManage admin. You cannot add tenants until it is approved."
+      : "Your property is pending verification by ProManage admin. You can add tenants only after it is approved.";
+
   const handleAddTenant = async () => {
     setFormError("");
     setAadhaarError("");
@@ -169,64 +175,65 @@ export default function TenantsPage() {
     if (!form.roomId) { setFormError("Please select a room"); return; }
     if (!propertyId) return;
 
+    // Re-check latest verification status before insert
+    const { data: latestProperty } = await supabase
+      .from("properties")
+      .select("verification_status")
+      .eq("id", propertyId)
+      .single();
+
+    if (latestProperty?.verification_status !== "verified") {
+      setFormError(
+        latestProperty?.verification_status === "rejected"
+          ? "Property rejected by admin. Tenant addition is locked."
+          : "Property not verified by admin yet. Tenant addition is locked."
+      );
+      return;
+    }
+
     setSubmitting(true);
     const rent = parseInt(form.rent.replace(/[^\d]/g, "")) || 0;
     const deposit = parseInt(form.deposit.replace(/[^\d]/g, "")) || 0;
 
-    const { data: tenantData, error } = await supabase.from("tenants").insert({
-      property_id: propertyId,
-      name: form.name.trim(),
-      phone: form.phone.trim(),
-      email: form.email.trim(),
-      gov_ids: { aadhaar: form.aadhaar.replace(/\s/g, "") },
-      emergency_contact: { phone: form.emergencyContact.trim() },
-      address: form.homeAddress.trim(),
-      room_id: form.roomId,
-      rent,
-      deposit,
-      occupation: form.occupation.trim(),
-      join_date: form.joinDate,
-      status: "Active",
-    }).select().single();
-
-    if (error) {
-      setFormError(error.message);
-    } else if (tenantData) {
-      // Assign tenant to an available bed in the room
-      const { data: availableBed } = await supabase
-        .from("beds")
-        .select("id")
-        .eq("room_id", form.roomId)
-        .eq("status", "available")
-        .limit(1)
-        .single();
-
-      if (availableBed) {
-        await supabase.from("beds").update({
-          tenant_id: tenantData.user_id || null,
-          tenant_name: form.name.trim(),
-          status: "occupied",
-          assigned_date: form.joinDate,
-        }).eq("id", availableBed.id);
-
-        await supabase.from("rooms").update({ status: "Occupied" }).eq("id", form.roomId);
-        if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("rooms-updated"));
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) {
+        setFormError("Please sign in again");
+        setSubmitting(false);
+        return;
       }
 
-      // Create first rent collection entry
-      if (rent > 0) {
-        const now = new Date();
-        const dueDate = new Date(now.getFullYear(), now.getMonth(), 1);
-        if (dueDate < now) dueDate.setMonth(dueDate.getMonth() + 1);
+      const createRes = await fetch("/api/tenants/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          propertyId,
+          name: form.name.trim(),
+          phone: form.phone.trim(),
+          email: form.email.trim(),
+          aadhaar: form.aadhaar,
+          emergencyContact: form.emergencyContact.trim(),
+          homeAddress: form.homeAddress.trim(),
+          roomId: form.roomId,
+          rent,
+          deposit,
+          occupation: form.occupation.trim(),
+          joinDate: form.joinDate,
+        }),
+      });
 
-        await supabase.from("rent_collection").insert({
-          property_id: propertyId,
-          tenant_id: tenantData.id,
-          amount: rent,
-          due_date: dueDate.toISOString().split("T")[0],
-          status: "Pending",
-        });
+      const createResult = await createRes.json();
+      if (!createRes.ok) {
+        setFormError(createResult.error || "Failed to add tenant");
+        setSubmitting(false);
+        return;
       }
+
+      if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("rooms-updated"));
 
       // Create auth account and send credentials email if email provided
       if (form.email.trim()) {
@@ -237,8 +244,9 @@ export default function TenantsPage() {
           body: JSON.stringify({
             tenantName: form.name.trim(),
             tenantEmail: form.email.trim(),
-            pgName: property?.name || "PG",
+            pgName: createResult.propertyName || property?.name || "PG",
             roomNumber: selectedRoom?.number || "",
+            propertyId,
           }),
         });
         const emailResult = await emailRes.json();
@@ -250,6 +258,8 @@ export default function TenantsPage() {
       setForm({ name: "", phone: "", email: "", aadhaar: "", emergencyContact: "", homeAddress: "", roomId: "", rent: "", deposit: "", occupation: "", joinDate: new Date().toISOString().split("T")[0] });
       modalState.close();
       await fetchTenants();
+    } catch {
+      setFormError("Failed to add tenant");
     }
     setSubmitting(false);
   };
@@ -368,6 +378,24 @@ export default function TenantsPage() {
 
   return (
     <div className="space-y-4 sm:space-y-8">
+      {!isPropertyVerified && (
+        <div className={`rounded-xl border px-4 py-3 flex items-start gap-3 text-sm ${
+          property?.verification_status === "rejected"
+            ? "bg-rose-50 border-rose-100 text-rose-800"
+            : "bg-amber-50 border-amber-100 text-amber-800"
+        }`}>
+          <ShieldAlert size={18} className="mt-0.5 shrink-0" />
+          <div>
+            <p className="font-medium">
+              {property?.verification_status === "rejected"
+                ? "Property verification rejected"
+                : "Awaiting admin verification"}
+            </p>
+            <p className="mt-0.5 opacity-90">{verificationBlockedMessage}</p>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="text-lg sm:text-xl font-bold text-slate-900">{t("tenants.title")}</h2>
@@ -375,7 +403,15 @@ export default function TenantsPage() {
             {tenants.length} {t("common.total")} &middot; {activeCount} {t("status.active").toLowerCase()}
           </p>
         </div>
-        <Button variant="primary" size="sm" onPress={() => modalState.open()}>
+        <Button
+          variant="primary"
+          size="sm"
+          isDisabled={!isPropertyVerified}
+          onPress={() => {
+            if (!isPropertyVerified) return;
+            modalState.open();
+          }}
+        >
           <Plus size={14} />
           <span className="hidden sm:inline">{t("tenants.addTenant")}</span>
           <span className="sm:hidden">Add</span>

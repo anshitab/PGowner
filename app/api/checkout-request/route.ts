@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { isEmailConfigured, sendEmail, transactionalEmail } from "@/lib/email";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -46,46 +47,35 @@ export async function POST(request: Request) {
     .eq("id", tenant.property_id)
     .single();
 
-  if (property) {
+  if (property && isEmailConfigured()) {
     const { data: owner } = await supabaseAdmin.auth.admin.getUserById(property.owner_id);
     const ownerEmail = owner?.user?.email;
+    const roomNumber = (tenant.rooms as unknown as { number: string } | null)?.number || "N/A";
 
     if (ownerEmail) {
-      const apiKey = process.env.MAILJET_API_KEY;
-      const secretKey = process.env.MAILJET_SECRET_KEY;
-      const senderEmail = process.env.MAILJET_SENDER_EMAIL || "anshitabathla33@gmail.com";
-      const roomNumber = (tenant.rooms as unknown as { number: string } | null)?.number || "N/A";
-
-      if (apiKey && secretKey) {
-        await fetch("https://api.mailjet.com/v3.1/send", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: "Basic " + Buffer.from(`${apiKey}:${secretKey}`).toString("base64"),
-          },
-          body: JSON.stringify({
-            Messages: [
-              {
-                From: { Email: senderEmail, Name: "ProManage" },
-                To: [{ Email: ownerEmail, Name: "PG Owner" }],
-                Subject: `Checkout Request from ${tenant.name} — Room ${roomNumber}`,
-                HTMLPart: `
-                  <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto;">
-                    <h2 style="color: #1e293b;">Checkout Request</h2>
-                    <p style="color: #475569;">A tenant has submitted a checkout request for your property <strong>${property.name}</strong>.</p>
-                    <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
-                      <tr><td style="padding: 8px 0; color: #64748b;">Tenant</td><td style="padding: 8px 0; font-weight: 600;">${tenant.name}</td></tr>
-                      <tr><td style="padding: 8px 0; color: #64748b;">Room</td><td style="padding: 8px 0; font-weight: 600;">${roomNumber}</td></tr>
-                      <tr><td style="padding: 8px 0; color: #64748b;">Checkout Date</td><td style="padding: 8px 0; font-weight: 600;">${checkoutDate}</td></tr>
-                      <tr><td style="padding: 8px 0; color: #64748b;">Deposit</td><td style="padding: 8px 0; font-weight: 600;">₹${(tenant.deposit || 0).toLocaleString("en-IN")}</td></tr>
-                    </table>
-                    <p style="color: #475569; font-size: 14px;">Please log in to ProManage to process this request.</p>
-                  </div>
-                `,
-              },
-            ],
+      try {
+        await sendEmail({
+          to: ownerEmail,
+          toName: "PG Owner",
+          subject: `Checkout notice: ${tenant.name}, Room ${roomNumber}`,
+          html: transactionalEmail({
+            preheader: `${tenant.name} requested checkout from ${property.name} on ${checkoutDate}.`,
+            title: "Tenant checkout notice",
+            bodyHtml: `
+              <p style="margin:0 0 12px 0;">A tenant submitted a checkout request for <strong>${property.name}</strong>.</p>
+              <p style="margin:0 0 6px 0;"><strong>Tenant:</strong> ${tenant.name}</p>
+              <p style="margin:0 0 6px 0;"><strong>Room:</strong> ${roomNumber}</p>
+              <p style="margin:0 0 6px 0;"><strong>Checkout date:</strong> ${checkoutDate}</p>
+              <p style="margin:0 0 16px 0;"><strong>Deposit on record:</strong> Rs. ${(tenant.deposit || 0).toLocaleString("en-IN")}</p>
+              <p style="margin:0;color:#475569;font-size:14px;">Open ProManage to review and complete settlement.</p>
+            `,
+            reason: `Sent because you are the owner of ${property.name}.`,
           }),
-        }).catch(() => {});
+          category: "checkout",
+          fromName: "ProManage Alerts",
+        });
+      } catch {
+        // Checkout is already saved; don't fail the request on email errors
       }
     }
   }

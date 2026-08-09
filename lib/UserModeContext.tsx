@@ -3,7 +3,7 @@
 import { createContext, useContext } from "react";
 import { useAuth } from "./AuthContext";
 
-export type UserMode = "owner" | "tenant";
+export type UserMode = "owner" | "tenant" | "super_admin";
 
 interface UserModeContextType {
   mode: UserMode;
@@ -15,7 +15,12 @@ const UserModeContext = createContext<UserModeContextType>({
 
 export function UserModeProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
-  const mode: UserMode = user?.role === "tenant" ? "tenant" : "owner";
+  const mode: UserMode =
+    user?.role === "super_admin"
+      ? "super_admin"
+      : user?.role === "tenant"
+        ? "tenant"
+        : "owner";
 
   return (
     <UserModeContext.Provider value={{ mode }}>
