@@ -7,21 +7,49 @@
 @import "@heroui/styles/variants";
 
 :root {
-  --background: #f8fafc;
-  --foreground: #1e293b;
-  --sidebar-bg: #0f172a;
-  --sidebar-text: #94a3b8;
-  --sidebar-active: #ffffff;
+  /* Cool mist paper — not cream, not purple SaaS */
+  --background: #eef2f0;
+  --foreground: #14201c;
+  --surface: #f7f9f8;
+  --surface-raised: #ffffff;
+  --muted: #5c6b65;
+  --line: #d5ddd8;
+
+  --ink: #14201c;
+  --forest: #1a3d35;
+  --teal: #1f6f61;
+  --teal-deep: #15574c;
+  --mist: #d9e8e3;
+  --sand: #e7efe9;
+  --alert: #b45309;
+  --danger: #b42318;
+
+  --sidebar-bg: #12201c;
+  --sidebar-text: #a8b8b2;
+  --sidebar-active: #f3f7f5;
   --card-bg: #ffffff;
-  --accent-green: #22c55e;
-  --accent-orange: #f59e0b;
-  --accent-red: #ef4444;
-  --accent-blue: #3b82f6;
+  --accent-green: #1f6f61;
+  --accent-orange: #c27803;
+  --accent-red: #b42318;
+  --accent-blue: #1f6f61;
+
+  --font-outfit: "Outfit", system-ui, sans-serif;
+  --font-fraunces: "Fraunces", Georgia, serif;
+  --font-devanagari: "Noto Serif Devanagari", Georgia, serif;
+  --font-display: var(--font-fraunces);
+  --font-body: var(--font-outfit);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-forest: var(--forest);
+  --color-teal: var(--teal);
+  --color-mist: var(--mist);
+  --color-line: var(--line);
+  --color-muted: var(--muted);
   --color-sidebar-bg: var(--sidebar-bg);
   --color-sidebar-text: var(--sidebar-text);
   --color-sidebar-active: var(--sidebar-active);
@@ -30,20 +58,24 @@
   --color-accent-orange: var(--accent-orange);
   --color-accent-red: var(--accent-red);
   --color-accent-blue: var(--accent-blue);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-outfit);
+  --font-display: var(--font-fraunces);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-family: var(--font-body);
+}
+
+.font-display {
+  font-family: var(--font-display);
 }
 
 @keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
@@ -51,8 +83,36 @@ body {
   }
 }
 
+@keyframes revealSoft {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes heroDrift {
+  from {
+    transform: scale(1.06);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
 .page-enter {
-  animation: fadeInUp 0.3s ease-out;
+  animation: fadeInUp 0.35s ease-out;
+}
+
+.reveal-soft {
+  animation: revealSoft 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.hero-drift {
+  animation: heroDrift 8s ease-out forwards;
 }
 
 .card-hover {
@@ -61,7 +121,7 @@ body {
 
 .card-hover:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px -5px rgb(0 0 0 / 0.08), 0 4px 10px -4px rgb(0 0 0 / 0.04);
+  box-shadow: 0 10px 28px -12px rgb(20 32 28 / 0.18);
 }
 
 @keyframes fadeInStagger {
@@ -76,7 +136,16 @@ body {
 }
 
 .stagger-item {
-  animation: fadeInStagger 0.4s ease-out both;
+  animation: fadeInStagger 0.45s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-enter,
+  .reveal-soft,
+  .hero-drift,
+  .stagger-item {
+    animation: none;
+  }
 }
 
 ::-webkit-scrollbar {
@@ -89,10 +158,10 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #b7c4be;
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #8fa099;
 }

@@ -270,10 +270,10 @@ export const translations: Record<Locale, Record<string, string>> = {
     "verification.manual": "Manual Entry",
 
     // Landing
-    "landing.hero": "Smart PG Management, Simplified",
-    "landing.heroSub": "Manage rooms, tenants, rent collection, and maintenance — all from one dashboard.",
-    "landing.loginOwner": "Login as PG Owner",
-    "landing.loginTenant": "Login as Tenant",
+    "landing.hero": "The quiet operating system for Indian PGs.",
+    "landing.heroSub": "Rooms, tenants, and rent—without the spreadsheet chaos.",
+    "landing.loginOwner": "I manage a PG",
+    "landing.loginTenant": "I live in a PG",
     "landing.properties": "Our Properties",
     "landing.propertiesSub": "Take a look at the spaces we manage",
     "landing.featuresTitle": "Everything You Need",
@@ -596,8 +596,8 @@ export const translations: Record<Locale, Record<string, string>> = {
     "verification.manual": "मैनुअल प्रविष्टि",
 
     // Landing
-    "landing.hero": "स्मार्ट PG प्रबंधन, सरलीकृत",
-    "landing.heroSub": "कमरे, किरायेदार, किराया संग्रह और रखरखाव — सब एक डैशबोर्ड से।",
+    "landing.hero": "भारतीय PG के लिए शांत ऑपरेटिंग सिस्टम।",
+    "landing.heroSub": "कमरे, किरायेदार और किराया—बिना स्प्रेडशीट के झंझट के।",
     "landing.loginOwner": "PG मालिक के रूप में लॉगिन",
     "landing.loginTenant": "किरायेदार के रूप में लॉगिन",
     "landing.properties": "हमारी संपत्तियाँ",
