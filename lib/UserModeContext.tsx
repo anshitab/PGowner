@@ -15,12 +15,9 @@ const UserModeContext = createContext<UserModeContextType>({
 
 export function UserModeProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
+  // Owner app: platform admins use the owner UI here; Super Admin app handles admin mode.
   const mode: UserMode =
-    user?.role === "super_admin"
-      ? "super_admin"
-      : user?.role === "tenant"
-        ? "tenant"
-        : "owner";
+    user?.role === "tenant" ? "tenant" : "owner";
 
   return (
     <UserModeContext.Provider value={{ mode }}>

@@ -68,7 +68,7 @@ export default function TopBar({ onMenuClick }: TopBarProps) {
             {user?.name || "User"}
           </p>
           <p className="text-[11px] text-slate-500">
-            {user?.role === "owner" ? t("mode.propertyManager") : t("mode.tenant")}
+            {mode === "tenant" ? t("mode.tenant") : t("mode.propertyManager")}
           </p>
         </div>
         <button
