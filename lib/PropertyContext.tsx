@@ -43,7 +43,7 @@ const PropertyContext = createContext<PropertyContextType>({
 });
 
 export function PropertyProvider({ children }: { children: ReactNode }) {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, loading: authLoading } = useAuth();
   const [property, setProperty] = useState<Property | null>(null);
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,12 +64,7 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (user.role === "super_admin") {
-      setProperty(null);
-      setProperties([]);
-      setLoading(false);
-      return;
-    }
+    setLoading(true);
 
     if (user.role === "tenant") {
       const { data: tenant } = await supabase
@@ -114,14 +109,18 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   useEffect(() => {
+    if (authLoading) {
+      setLoading(true);
+      return;
+    }
     if (isAuthenticated) {
-      fetchProperty();
+      void fetchProperty();
     } else {
       setProperty(null);
       setProperties([]);
       setLoading(false);
     }
-  }, [isAuthenticated, fetchProperty]);
+  }, [authLoading, isAuthenticated, fetchProperty]);
 
   const createProperty = useCallback(async (props: Omit<Property, "id" | "owner_id" | "created_at">) => {
     if (!user) return null;

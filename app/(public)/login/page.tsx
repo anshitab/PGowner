@@ -27,13 +27,15 @@ export default function LoginPage() {
 
 function LoginContent() {
   const { t } = useLanguage();
-  const { signIn, signOut, loading } = useAuth();
+  const { signIn, resetPassword, loading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
 
   const initialRole = (searchParams.get("role") as AuthRole) || "owner";
   const [activeTab, setActiveTab] = useState<AuthRole>(initialRole);
   const [isSignUp, setIsSignUp] = useState(false);
+  const [forgotMode, setForgotMode] = useState(false);
+  const [forgotSent, setForgotSent] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -65,6 +67,30 @@ function LoginContent() {
     setOtp("");
     setOtpStep(true);
     setResendCooldown(30);
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+
+    if (!email.trim()) {
+      setError("Please enter your email address");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const result = await resetPassword(email.trim());
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      setForgotSent(true);
+    } catch {
+      setError("Unable to send reset email. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -115,15 +141,10 @@ function LoginContent() {
             setError(result.error);
             return;
           }
-          if (result.role === "super_admin") {
-            await signOut();
-            setError("Incorrect email or password");
-            return;
-          }
           router.replace("/setup");
         }
       } else {
-        const result = await signIn(email, password);
+        const result = await signIn(email.trim(), password);
         if (result.error) {
           const msg = result.error.toLowerCase();
           setError(
@@ -131,9 +152,6 @@ function LoginContent() {
               ? "Incorrect email or password"
               : result.error
           );
-        } else if (result.role === "super_admin") {
-          await signOut();
-          setError("Incorrect email or password");
         } else if (result.role === "tenant") {
           router.replace("/dashboard");
         } else {
@@ -225,7 +243,16 @@ function LoginContent() {
             ProManage
           </Link>
 
-          {isSignUp && isOwner && otpStep ? (
+          {forgotMode ? (
+            <>
+              <h1 className="font-display text-3xl font-semibold tracking-tight text-[var(--ink)]">
+                Reset password
+              </h1>
+              <p className="mt-2 text-sm text-[var(--muted)]">
+                Enter your account email and we’ll send a reset link.
+              </p>
+            </>
+          ) : isSignUp && isOwner && otpStep ? (
             <>
               <h1 className="font-display text-3xl font-semibold tracking-tight text-[var(--ink)]">
                 Check your email
@@ -264,7 +291,7 @@ function LoginContent() {
             </>
           )}
 
-          {!searchParams.get("role") && (
+          {!searchParams.get("role") && !forgotMode && (
             <div className="mt-6 flex rounded-md border border-[var(--line)] bg-[var(--background)] p-1">
               <button
                 type="button"
@@ -300,8 +327,34 @@ function LoginContent() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="mt-8 space-y-4">
-            {isSignUp && isOwner && otpStep ? (
+          <form
+            onSubmit={forgotMode ? handleForgotPassword : handleSubmit}
+            className="mt-8 space-y-4"
+          >
+            {forgotMode ? (
+              <>
+                {forgotSent ? (
+                  <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                    If an account exists for <span className="font-medium">{email.trim()}</span>, a
+                    reset link has been sent. Check your inbox and spam folder.
+                  </p>
+                ) : (
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-[var(--ink)]">
+                      {t("login.email")}
+                    </label>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="you@example.com"
+                      autoComplete="email"
+                      className={inputClass}
+                    />
+                  </div>
+                )}
+              </>
+            ) : isSignUp && isOwner && otpStep ? (
               <>
                 <div className="flex justify-center">
                   <div className="flex h-14 w-14 items-center justify-center rounded-md bg-[var(--mist)]">
@@ -399,7 +452,7 @@ function LoginContent() {
                   </div>
                 </div>
 
-                {!isSignUp && isOwner && (
+                {!isSignUp && (
                   <div className="flex items-center justify-between">
                     <label className="flex cursor-pointer items-center gap-2">
                       <input
@@ -410,6 +463,12 @@ function LoginContent() {
                     </label>
                     <button
                       type="button"
+                      onClick={() => {
+                        setForgotMode(true);
+                        setForgotSent(false);
+                        setError("");
+                        setIsSignUp(false);
+                      }}
                       className="text-sm font-medium text-[var(--teal)] hover:text-[var(--teal-deep)]"
                     >
                       {t("login.forgot")}
@@ -425,22 +484,41 @@ function LoginContent() {
               </p>
             )}
 
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full rounded-md bg-[var(--teal)] py-3 text-sm font-semibold text-white transition hover:bg-[var(--teal-deep)] disabled:opacity-50"
-            >
-              {submitting
-                ? "Please wait..."
-                : isSignUp && isOwner && otpStep
-                  ? "Verify & continue"
-                  : isSignUp && isOwner
-                    ? "Send verification code"
-                    : t("login.submit")}
-            </button>
+            {!(forgotMode && forgotSent) && (
+              <button
+                type="submit"
+                disabled={submitting}
+                className="w-full rounded-md bg-[var(--teal)] py-3 text-sm font-semibold text-white transition hover:bg-[var(--teal-deep)] disabled:opacity-50"
+              >
+                {submitting
+                  ? "Please wait..."
+                  : forgotMode
+                    ? "Send reset link"
+                    : isSignUp && isOwner && otpStep
+                      ? "Verify & continue"
+                      : isSignUp && isOwner
+                        ? "Send verification code"
+                        : t("login.submit")}
+              </button>
+            )}
           </form>
 
-          {isOwner && !otpStep && (
+          {forgotMode ? (
+            <p className="mt-6 text-center text-sm text-[var(--muted)]">
+              <button
+                type="button"
+                onClick={() => {
+                  setForgotMode(false);
+                  setForgotSent(false);
+                  setError("");
+                }}
+                className="inline-flex items-center gap-1 font-medium text-[var(--teal)] hover:text-[var(--teal-deep)]"
+              >
+                <ArrowLeft size={14} />
+                Back to sign in
+              </button>
+            </p>
+          ) : isOwner && !otpStep ? (
             <p className="mt-6 text-center text-sm text-[var(--muted)]">
               {isSignUp ? "Already have an account?" : t("login.noAccount")}{" "}
               <button
@@ -457,8 +535,8 @@ function LoginContent() {
                 {isSignUp ? "Sign in" : t("login.signUp")}
               </button>
             </p>
-          )}
-          {!isOwner && (
+          ) : null}
+          {!isOwner && !forgotMode && (
             <p className="mt-6 text-center text-xs leading-relaxed text-[var(--muted)]">
               No login yet? Ask your PG owner to add you—they’ll email your credentials.
             </p>

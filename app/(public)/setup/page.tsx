@@ -50,7 +50,7 @@ function SetupContent() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (!isAuthenticated || user?.role !== "owner") {
+    if (!isAuthenticated || user?.role === "tenant") {
       router.replace("/login?role=owner");
       return;
     }
@@ -58,14 +58,6 @@ function SetupContent() {
       router.replace("/dashboard");
     }
   }, [isSetupComplete, propLoading, router, isAddMode, authLoading, isAuthenticated, user]);
-
-  if (authLoading || !isAuthenticated || user?.role !== "owner") {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
-      </div>
-    );
-  }
 
   useEffect(() => {
     setPerFloorRooms((prev) => {
@@ -86,6 +78,14 @@ function SetupContent() {
     }
     setRoomNumbers(generated);
   }, [floors, perFloorRooms, roomsPerFloor]);
+
+  if (authLoading || !isAuthenticated || user?.role === "tenant") {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
+      </div>
+    );
+  }
 
   const updateRoomNumber = (floorIdx: number, roomIdx: number, value: string) => {
     setRoomNumbers((prev) => {

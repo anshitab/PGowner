@@ -23,6 +23,8 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error?: string; role?: AuthRole }>;
   signOut: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  resetPassword: (email: string) => Promise<{ error?: string }>;
+  updatePassword: (password: string) => Promise<{ error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -33,6 +35,8 @@ const AuthContext = createContext<AuthContextType>({
   signIn: async () => ({}),
   signOut: async () => {},
   refreshUser: async () => {},
+  resetPassword: async () => ({}),
+  updatePassword: async () => ({}),
 });
 
 function mapUser(supaUser: User): AuthUser {
@@ -65,24 +69,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    let mounted = true;
+
+    const init = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!mounted) return;
       if (session?.user) {
         setUser(mapUser(session.user));
       }
       setLoading(false);
-    });
+    };
+
+    void init();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event: string, session: Session | null) => {
+      (event: string, session: Session | null) => {
+        if (!mounted) return;
         if (session?.user) {
           setUser(mapUser(session.user));
-        } else {
+          return;
+        }
+        // Don't clear the user on a transient null during boot — only on explicit sign-out.
+        if (event === "SIGNED_OUT") {
           setUser(null);
         }
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signUp = useCallback(async (email: string, password: string, name: string, role: AuthRole) => {
@@ -151,8 +168,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  const resetPassword = useCallback(async (email: string) => {
+    try {
+      const res = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        return { error: body.error || "Unable to send reset email" };
+      }
+      return {};
+    } catch {
+      return { error: "Unable to send reset email. Please try again." };
+    }
+  }, []);
+
+  const updatePassword = useCallback(async (password: string) => {
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) return { error: error.message };
+    return {};
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ isAuthenticated: !!user, user, loading, signUp, signIn, signOut, refreshUser }}>
+    <AuthContext.Provider
+      value={{
+        isAuthenticated: !!user,
+        user,
+        loading,
+        signUp,
+        signIn,
+        signOut,
+        refreshUser,
+        resetPassword,
+        updatePassword,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
