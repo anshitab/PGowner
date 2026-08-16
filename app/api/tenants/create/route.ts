@@ -21,7 +21,7 @@ export async function POST(request: Request) {
 
     const user = authData.user;
     const role = user.user_metadata?.role || "owner";
-    if (role !== "owner" && role !== "super_admin") {
+    if (role !== "owner") {
       return NextResponse.json({ error: "Only property owners can add tenants" }, { status: 403 });
     }
 

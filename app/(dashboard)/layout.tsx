@@ -16,7 +16,7 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { isAuthenticated, user, loading: authLoading } = useAuth();
+  const { isAuthenticated, user, loading: authLoading, signOut } = useAuth();
   const { property, loading: propLoading } = usePropertyContext();
   const { mode } = useUserMode();
   const router = useRouter();
@@ -62,13 +62,13 @@ export default function DashboardLayout({
       return;
     }
     if (user?.role === "super_admin" || mode === "super_admin") {
-      router.replace("/admin");
+      void signOut().then(() => router.replace("/login?role=owner"));
       return;
     }
     if (mode === "owner" && !property) {
       router.replace("/setup");
     }
-  }, [isAuthenticated, authLoading, propLoading, property, mode, router, user]);
+  }, [isAuthenticated, authLoading, propLoading, property, mode, router, user, signOut]);
 
   if (authLoading || propLoading) return null;
   if (!isAuthenticated) return null;

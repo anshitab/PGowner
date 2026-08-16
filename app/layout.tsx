@@ -1,35 +1,10 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Noto_Serif_Devanagari, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import Providers from "@/components/Providers";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-const notoSerifDev = Noto_Serif_Devanagari({
-  variable: "--font-devanagari",
-  subsets: ["devanagari"],
-  weight: ["400", "700"],
-  style: ["normal"],
-});
-
-const playfair = Playfair_Display({
-  variable: "--font-playfair",
-  subsets: ["latin"],
-  weight: ["700", "900"],
-  style: ["italic"],
-});
-
 export const metadata: Metadata = {
-  title: "ProManage AI — Property Management Dashboard",
-  description: "Smart property management system with AI-powered insights",
+  title: "ProManage — PG management for Indian hosts",
+  description: "Run your paying guest property with clear rooms, rent, and tenant tools.",
 };
 
 export default function RootLayout({
@@ -38,11 +13,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${notoSerifDev.variable} ${playfair.variable} h-full antialiased`}
-    >
-      <body className="min-h-full bg-[var(--background)]">
+    <html lang="en" className="h-full antialiased">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500;1,9..144,600;1,9..144,700&family=Noto+Serif+Devanagari:wght@400;700&family=Outfit:wght@300;400;500;600;700&display=swap"
+          rel="stylesheet"
+        />
+      </head>
+      <body className="min-h-full bg-[var(--background)] font-[family-name:var(--font-outfit)]">
         <Providers>{children}</Providers>
       </body>
     </html>

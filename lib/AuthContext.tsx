@@ -48,17 +48,6 @@ function mapUser(supaUser: User): AuthUser {
   };
 }
 
-async function ensureSuperAdminRole(accessToken: string) {
-  try {
-    await fetch("/api/admin/ensure-role", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
-  } catch {
-    // non-blocking
-  }
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
@@ -76,17 +65,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
-        if (session.access_token) {
-          await ensureSuperAdminRole(session.access_token);
-          const { data: refreshed } = await supabase.auth.getUser();
-          if (refreshed.user) {
-            setUser(mapUser(refreshed.user));
-            setLoading(false);
-            return;
-          }
-        }
         setUser(mapUser(session.user));
       }
       setLoading(false);
@@ -156,17 +136,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .update({ user_id: data.session.user.id })
           .eq("email", email)
           .is("user_id", null);
-      }
-
-      if (data.session.access_token) {
-        await ensureSuperAdminRole(data.session.access_token);
-        await supabase.auth.refreshSession();
-        const { data: refreshed } = await supabase.auth.getUser();
-        if (refreshed.user) {
-          const mapped = mapUser(refreshed.user);
-          setUser(mapped);
-          return { role: mapped.role };
-        }
       }
 
       const mapped = mapUser(data.session.user);

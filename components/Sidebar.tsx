@@ -78,32 +78,37 @@ export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
 
   const sidebarContent = (
     <>
-      <div className="p-6 border-b border-white/10 flex items-center justify-between">
-        <Link href="/dashboard" className="flex items-center gap-2.5" onClick={onMobileClose}>
-          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-            isTenant ? "bg-emerald-600" : "bg-blue-600"
-          }`}>
-            {isTenant ? <Home size={16} className="text-white" /> : <Building2 size={16} className="text-white" />}
+      <div className="flex items-center justify-between border-b border-white/10 px-5 py-5">
+        <Link href="/dashboard" className="flex min-w-0 items-center gap-2.5" onClick={onMobileClose}>
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[var(--teal)]">
+            {isTenant ? <Home size={15} className="text-white" /> : <Building2 size={15} className="text-white" />}
           </div>
-          <h1 className="text-lg font-bold text-white tracking-tight">ProManage</h1>
-          {isTenant && (
-            <span className="ml-auto text-[10px] font-medium bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full">
-              Tenant
-            </span>
-          )}
+          <div className="min-w-0">
+            <h1 className="font-display text-lg font-semibold tracking-tight text-white">
+              ProManage
+            </h1>
+            {isTenant && (
+              <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-[var(--mist)]">
+                Tenant
+              </p>
+            )}
+          </div>
         </Link>
         {onMobileClose && (
-          <button onClick={onMobileClose} className="md:hidden p-1.5 text-slate-400 hover:text-white">
+          <button
+            onClick={onMobileClose}
+            className="p-1.5 text-[var(--sidebar-text)] hover:text-white md:hidden"
+          >
             <X size={20} />
           </button>
         )}
       </div>
 
-      <nav className="flex-1 py-4 overflow-y-auto">
-        <p className="px-6 mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+      <nav className="flex-1 overflow-y-auto py-4">
+        <p className="mb-2 px-5 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/35">
           {t("nav.main")}
         </p>
-        <ul className="space-y-0.5 px-3">
+        <ul className="space-y-0.5 px-2">
           {navItems.map((item) => {
             const Icon = icons[item.icon];
             const isActive = pathname === item.href;
@@ -112,18 +117,14 @@ export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
                 <Link
                   href={item.href}
                   onClick={onMobileClose}
-                  className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 text-sm font-medium ${
+                  className={`relative flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition ${
                     isActive
-                      ? isTenant
-                        ? "bg-emerald-500/15 text-emerald-100 shadow-sm"
-                        : "bg-white/10 text-white shadow-sm"
-                      : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
+                      ? "bg-white/10 text-[var(--sidebar-active)]"
+                      : "text-[var(--sidebar-text)] hover:bg-white/5 hover:text-white/90"
                   }`}
                 >
                   {isActive && (
-                    <span className={`absolute left-0 w-[3px] h-5 rounded-r-full ${
-                      isTenant ? "bg-emerald-500" : "bg-blue-500"
-                    }`} />
+                    <span className="absolute left-0 h-5 w-[3px] rounded-r-full bg-[var(--teal)]" />
                   )}
                   {Icon && <Icon size={18} />}
                   <span>{t(item.key)}</span>
@@ -134,17 +135,17 @@ export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
         </ul>
       </nav>
 
-      <div className="border-t border-white/10 p-3 space-y-0.5">
-        <p className="px-4 mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+      <div className="space-y-0.5 border-t border-white/10 p-2">
+        <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/35">
           {t("nav.system")}
         </p>
         <Link
           href="/settings"
           onClick={onMobileClose}
-          className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 text-sm font-medium ${
+          className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition ${
             pathname === "/settings"
-              ? isTenant ? "bg-emerald-500/15 text-emerald-100" : "bg-white/10 text-white"
-              : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
+              ? "bg-white/10 text-[var(--sidebar-active)]"
+              : "text-[var(--sidebar-text)] hover:bg-white/5 hover:text-white/90"
           }`}
         >
           <Settings size={18} />
@@ -156,24 +157,14 @@ export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
 
   return (
     <>
-      {/* Desktop sidebar */}
-      <aside className={`hidden md:flex fixed left-0 top-0 h-screen w-64 flex-col z-50 ${
-        isTenant
-          ? "bg-gradient-to-b from-slate-900 via-slate-900 to-emerald-950"
-          : "bg-[var(--sidebar-bg)]"
-      } text-[var(--sidebar-text)]`}>
+      <aside className="fixed left-0 top-0 z-50 hidden h-screen w-64 flex-col bg-[var(--sidebar-bg)] text-[var(--sidebar-text)] md:flex">
         {sidebarContent}
       </aside>
 
-      {/* Mobile overlay */}
       {mobileOpen && (
-        <div className="md:hidden fixed inset-0 z-50 flex">
+        <div className="fixed inset-0 z-50 flex md:hidden">
           <div className="fixed inset-0 bg-black/50" onClick={onMobileClose} />
-          <aside className={`relative w-72 max-w-[80vw] h-full flex flex-col ${
-            isTenant
-              ? "bg-gradient-to-b from-slate-900 via-slate-900 to-emerald-950"
-              : "bg-[var(--sidebar-bg)]"
-          } text-[var(--sidebar-text)]`}>
+          <aside className="relative flex h-full w-72 max-w-[80vw] flex-col bg-[var(--sidebar-bg)] text-[var(--sidebar-text)]">
             {sidebarContent}
           </aside>
         </div>
