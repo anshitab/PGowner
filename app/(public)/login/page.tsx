@@ -6,6 +6,11 @@ import Link from "next/link";
 import { Building2, Eye, EyeOff, User, MailCheck, ArrowLeft } from "lucide-react";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useAuth, AuthRole } from "@/lib/AuthContext";
+import {
+  DEMO_OWNER,
+  DEMO_TENANT,
+  isDemoAccountsEnabled,
+} from "@/lib/demo-accounts";
 import { motion } from "motion/react";
 
 const PANEL_IMAGE =
@@ -187,6 +192,23 @@ function LoginContent() {
   }
 
   const isOwner = activeTab === "owner";
+  const showDemoLogin = isDemoAccountsEnabled() && !forgotMode && !isSignUp && !otpStep;
+
+  const fillDemoCredentials = (role: AuthRole) => {
+    setActiveTab(role);
+    setIsSignUp(false);
+    setError("");
+    setOtpStep(false);
+    if (role === "owner") {
+      setEmail(DEMO_OWNER.email);
+      setPassword(DEMO_OWNER.password);
+      setName(DEMO_OWNER.name);
+    } else {
+      setEmail(DEMO_TENANT.email);
+      setPassword(DEMO_TENANT.password);
+      setName("");
+    }
+  };
   const inputClass =
     "w-full rounded-md border border-[var(--line)] bg-[var(--surface)] px-3.5 py-2.5 text-sm text-[var(--ink)] placeholder:text-[var(--muted)]/70 focus:border-[var(--teal)] focus:outline-none focus:ring-2 focus:ring-[var(--teal)]/15";
 
@@ -482,6 +504,35 @@ function LoginContent() {
               <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-[var(--danger)]">
                 {error}
               </p>
+            )}
+
+            {showDemoLogin && (
+              <div className="rounded-md border border-dashed border-[var(--teal)]/40 bg-[var(--teal)]/5 px-3 py-3">
+                <p className="text-xs font-medium text-[var(--ink)]">Try the demo</p>
+                <p className="mt-1 text-xs text-[var(--muted)]">
+                  Pre-filled accounts with sample PG data. Run{" "}
+                  <code className="rounded bg-[var(--surface)] px-1 py-0.5 text-[11px]">
+                    npm run seed:demo
+                  </code>{" "}
+                  once if login fails.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => fillDemoCredentials("owner")}
+                    className="rounded-md border border-[var(--line)] bg-[var(--surface)] px-3 py-1.5 text-xs font-medium text-[var(--ink)] transition hover:border-[var(--teal)]"
+                  >
+                    Demo owner
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => fillDemoCredentials("tenant")}
+                    className="rounded-md border border-[var(--line)] bg-[var(--surface)] px-3 py-1.5 text-xs font-medium text-[var(--ink)] transition hover:border-[var(--teal)]"
+                  >
+                    Demo tenant
+                  </button>
+                </div>
+              </div>
             )}
 
             {!(forgotMode && forgotSent) && (
