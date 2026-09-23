@@ -5,6 +5,8 @@ import { supabase } from "./supabase";
 import { usePropertyContext } from "./PropertyContext";
 import { useAuth } from "./AuthContext";
 import { useUserMode } from "./UserModeContext";
+import type { ServiceTrade } from "@/lib/service-trades";
+import { resolveComplaintCategory } from "@/lib/complaint-routing";
 
 export interface ComplaintComment {
   id: string;
@@ -25,6 +27,11 @@ export interface Complaint {
   date: string;
   time: string;
   assignedTo?: string;
+  category?: ServiceTrade;
+  approvalStatus?: "pending" | "approved" | "rejected";
+  vendorName?: string;
+  vendorPhone?: string;
+  vendorTrade?: string;
   comments: ComplaintComment[];
 }
 
@@ -32,6 +39,7 @@ interface ComplaintContextType {
   complaints: Complaint[];
   loading: boolean;
   updateStatus: (id: string, status: Complaint["status"]) => Promise<void>;
+  approveComplaint: (id: string) => Promise<{ error?: string; code?: string }>;
   addComplaint: (complaint: Omit<Complaint, "id" | "date" | "time" | "comments">) => Promise<void>;
   addComment: (complaintId: string, message: string) => Promise<void>;
   refetch: () => Promise<void>;
@@ -41,6 +49,7 @@ const ComplaintContext = createContext<ComplaintContextType>({
   complaints: [],
   loading: true,
   updateStatus: async () => {},
+  approveComplaint: async () => ({}),
   addComplaint: async () => {},
   addComment: async () => {},
   refetch: async () => {},
@@ -78,22 +87,43 @@ export function ComplaintProvider({ children }: { children: ReactNode }) {
     const res = await fetch(`/api/complaints?property_id=${resolvedPropertyId}`);
     const data = await res.json();
 
-    if (Array.isArray(data)) {
-      setComplaints(data.map((c: Record<string, unknown>) => ({
+    if (!Array.isArray(data)) {
+      setComplaints([]);
+      setLoading(false);
+      return;
+    }
+
+    setComplaints(
+      data.map((c: Record<string, unknown>) => {
+        const vendor = c.service_vendors as {
+          name: string;
+          phone: string;
+          trade: string;
+        } | null;
+        const title = c.title as string;
+        const description = (c.description as string) || "";
+        const category = resolveComplaintCategory(c.category as string | undefined, title, description);
+        return {
         id: c.id as string,
         tenantId: c.tenant_id as string,
-        title: c.title as string,
-        description: (c.description as string) || "",
+        title,
+        description,
         priority: c.priority as Complaint["priority"],
         status: c.status as Complaint["status"],
         tenant: (c.tenants as { name: string; rooms?: { number: string } | null } | null)?.name || "",
         room: (c.tenants as { name: string; rooms?: { number: string } | null } | null)?.rooms?.number || "",
         date: (c.created_at as string)?.split("T")[0] || "",
         time: getRelativeTime(c.created_at as string),
-        assignedTo: (c.assigned_to as string) || undefined,
+        assignedTo: (c.assigned_to as string) || vendor?.name || undefined,
+        category,
+        approvalStatus: (c.approval_status as Complaint["approvalStatus"]) || "pending",
+        vendorName: vendor?.name || (c.assigned_to as string) || undefined,
+        vendorPhone: vendor?.phone || undefined,
+        vendorTrade: vendor?.trade || category,
         comments: Array.isArray(c.comments) ? c.comments : [],
-      })));
-    }
+      };
+      })
+    );
     setLoading(false);
   }, [resolvedPropertyId]);
 
@@ -105,6 +135,27 @@ export function ComplaintProvider({ children }: { children: ReactNode }) {
     await supabase.from("complaints").update({ status }).eq("id", id);
     setComplaints((prev) => prev.map((c) => (c.id === id ? { ...c, status } : c)));
   }, []);
+
+  const approveComplaint = useCallback(async (id: string) => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    if (!token) return { error: "Please sign in again" };
+
+    const res = await fetch("/api/complaints/approve", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ complaintId: id }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { error: body.error || "Approval failed", code: body.code };
+    }
+    await fetchComplaints();
+    return {};
+  }, [fetchComplaints]);
 
   const addComplaint = useCallback(async (complaint: Omit<Complaint, "id" | "date" | "time" | "comments">) => {
     if (!propertyId) return;
@@ -161,7 +212,7 @@ export function ComplaintProvider({ children }: { children: ReactNode }) {
   }, [complaints]);
 
   return (
-    <ComplaintContext.Provider value={{ complaints, loading, updateStatus, addComplaint, addComment, refetch: fetchComplaints }}>
+    <ComplaintContext.Provider value={{ complaints, loading, updateStatus, approveComplaint, addComplaint, addComment, refetch: fetchComplaints }}>
       {children}
     </ComplaintContext.Provider>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { User, Shield, ScrollText, Plus, Trash2, GripVertical, Eye, EyeOff } from "lucide-react";
+import { User, Shield, ScrollText, Plus, Trash2, GripVertical, Eye, EyeOff, UtensilsCrossed, Wrench } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Card, Button, Avatar, AvatarFallback } from "@heroui/react";
 import { toast } from "sonner";
@@ -9,14 +9,20 @@ import { useUserMode } from "@/lib/UserModeContext";
 import { useAuth } from "@/lib/AuthContext";
 import { useSettings } from "@/lib/SettingsContext";
 import { supabase } from "@/lib/supabase";
+import { useRouter } from "next/navigation";
+import { DEMO_WEEKLY_MENU } from "@/lib/food-menu";
+import ServiceVendorsPanel from "@/components/settings/ServiceVendorsPanel";
 const allTabs = [
   { id: "profile", key: "settings.profile", icon: User },
   { id: "security", key: "settings.security", icon: Shield },
+  { id: "food", key: "settings.food", icon: UtensilsCrossed, ownerOnly: true },
+  { id: "serviceContacts", key: "settings.serviceContacts", icon: Wrench, ownerOnly: true },
   { id: "pgRules", key: "PG Rules", icon: ScrollText, ownerOnly: true },
 ];
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("profile");
+  const router = useRouter();
   const { t } = useLanguage();
   const { mode } = useUserMode();
   const { user, refreshUser } = useAuth();
@@ -381,6 +387,46 @@ export default function SettingsPage() {
                   <Button variant="outline" size="sm">{t("settings.enable2FA")}</Button>
                 </div>
               </div>
+            )}
+
+            {activeTab === "food" && isOwner && (
+              <div className="space-y-6">
+                <h3 className="text-base font-semibold text-slate-900">{t("settings.foodTitle")}</h3>
+                <p className="text-sm text-slate-500">{t("settings.foodDesc")}</p>
+
+                <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 bg-slate-50/80 p-4">
+                  <input
+                    type="checkbox"
+                    checked={settings.foodIncluded}
+                    onChange={(e) => {
+                      const foodIncluded = e.target.checked;
+                      const hasMenu = Object.values(settings.weeklyMenu).some(
+                        (d) => d.breakfast || d.lunch || d.dinner
+                      );
+                      void updateSettings({
+                        foodIncluded,
+                        weeklyMenu: foodIncluded && !hasMenu ? DEMO_WEEKLY_MENU : settings.weeklyMenu,
+                      }).then(() => showSaved());
+                    }}
+                    className="mt-1 h-4 w-4 rounded border-slate-300 text-[var(--teal)] focus:ring-[var(--teal)]"
+                  />
+                  <span>
+                    <span className="block text-sm font-medium text-slate-900">{t("settings.foodIncluded")}</span>
+                    <span className="mt-1 block text-xs text-slate-500">{t("settings.foodIncludedHint")}</span>
+                  </span>
+                </label>
+
+                {settings.foodIncluded && (
+                  <Button variant="primary" size="sm" onPress={() => router.push("/food-menu")}>
+                    <UtensilsCrossed size={14} />
+                    {t("settings.manageFoodMenu")}
+                  </Button>
+                )}
+              </div>
+            )}
+
+            {activeTab === "serviceContacts" && isOwner && (
+              <ServiceVendorsPanel />
             )}
 
             {activeTab === "pgRules" && (

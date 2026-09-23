@@ -10,6 +10,9 @@ import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useUserMode } from "@/lib/UserModeContext";
 import { usePropertyContext } from "@/lib/PropertyContext";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
+import { TRADE_LABELS, type ServiceTrade } from "@/lib/service-trades";
 
 interface NotificationItem {
   id: string;
@@ -21,6 +24,10 @@ interface NotificationItem {
   time: string;
   status: string;
   priority?: string;
+  category?: string;
+  approvalStatus?: string;
+  assignedTo?: string;
+  vendor?: { name: string; phone: string; trade: string } | null;
   createdAt: string;
 }
 
@@ -44,6 +51,7 @@ export default function NotificationsPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"All" | "checkout" | "complaint">("All");
   const [resolvingId, setResolvingId] = useState<string | null>(null);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (mode === "tenant") router.replace("/dashboard");
@@ -70,6 +78,10 @@ export default function NotificationsPage() {
         time: getRelativeTime(n.created_at),
         status: n.status,
         priority: n.priority,
+        category: n.category,
+        approvalStatus: n.approval_status,
+        assignedTo: n.assigned_to,
+        vendor: n.vendor,
         createdAt: n.created_at,
       })));
     }
@@ -79,6 +91,39 @@ export default function NotificationsPage() {
   useEffect(() => {
     fetchNotifications();
   }, [fetchNotifications]);
+
+  const handleApprove = async (item: NotificationItem) => {
+    setApprovingId(item.id);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) {
+        toast.error("Please sign in again");
+        return;
+      }
+      const res = await fetch("/api/complaints/approve", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ complaintId: item.id }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(body.error || "Could not approve complaint");
+        return;
+      }
+      toast.success(
+        body.vendor?.name
+          ? `Assigned to ${body.vendor.name}${body.emailSent ? " (email sent)" : ""}`
+          : "Complaint approved and assigned"
+      );
+      await fetchNotifications();
+    } finally {
+      setApprovingId(null);
+    }
+  };
 
   const handleResolve = async (item: NotificationItem) => {
     setResolvingId(item.id);
@@ -174,6 +219,18 @@ export default function NotificationsPage() {
                             </Chip>
                           </div>
                           <p className="text-xs text-slate-600 mt-1">{item.description}</p>
+                          {item.type === "complaint" && (
+                            <p className="text-[11px] text-indigo-600 mt-1">
+                              Issue type: {TRADE_LABELS[(item.category as ServiceTrade) || "general"]}
+                              {item.approvalStatus === "pending" ? " · awaiting your approval" : ""}
+                            </p>
+                          )}
+                          {item.type === "complaint" && item.approvalStatus === "approved" && (item.vendor || item.assignedTo) && (
+                            <p className="text-[11px] text-emerald-700 mt-1">
+                              Assigned: {item.vendor?.name || item.assignedTo}
+                              {item.vendor?.phone ? ` · ${item.vendor.phone}` : ""}
+                            </p>
+                          )}
                           <div className="flex items-center gap-3 mt-2 text-[11px] text-slate-500">
                             <span>{item.tenant}</span>
                             <span>&middot;</span>
@@ -188,6 +245,21 @@ export default function NotificationsPage() {
                               <CheckCircle2 size={16} />
                               <span className="text-xs font-medium">Resolved</span>
                             </div>
+                          ) : item.type === "complaint" && item.approvalStatus === "pending" ? (
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              onPress={() => handleApprove(item)}
+                              isDisabled={approvingId === item.id}
+                              className="bg-indigo-600"
+                            >
+                              {approvingId === item.id ? (
+                                <Clock size={14} className="animate-spin" />
+                              ) : (
+                                <CheckCircle2 size={14} />
+                              )}
+                              <span className="ml-1">Approve & assign</span>
+                            </Button>
                           ) : (
                             <Button
                               variant="outline"

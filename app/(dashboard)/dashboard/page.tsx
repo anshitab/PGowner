@@ -6,12 +6,14 @@ import { useAuth } from "@/lib/AuthContext";
 import { usePGData } from "@/lib/usePGData";
 import { useComplaints } from "@/lib/ComplaintContext";
 import { usePropertyContext } from "@/lib/PropertyContext";
+import { useSettings } from "@/lib/SettingsContext";
+import { DAY_KEYS, DAY_LABELS } from "@/lib/food-menu";
 import { supabase } from "@/lib/supabase";
 import { Card, Chip } from "@heroui/react";
 import {
   Clock, CalendarDays, IndianRupee, AlertTriangle, AlertCircle,
   Info, Building2, DoorOpen, Users, User, Phone, Mail, Home,
-  BedDouble, TrendingUp, Receipt, ShieldAlert, FileText, ArrowRight,
+  BedDouble, TrendingUp, Receipt, ShieldAlert, FileText, ArrowRight, UtensilsCrossed,
 } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
@@ -24,6 +26,7 @@ export default function Dashboard() {
   const rooms = pgData.rooms;
   const { complaints } = useComplaints();
   const { property } = usePropertyContext();
+  const { settings, loading: settingsLoading } = useSettings();
   const [fabOpen, setFabOpen] = useState(false);
   const [recentPayments, setRecentPayments] = useState<Array<{ id: string; tenant: string; room: string; amount: number }>>([]);
   const [tenantData, setTenantData] = useState<{ id?: string; name?: string; phone?: string; email?: string; room?: string; rent?: number; joinDate?: string; property?: string; upiId?: string } | null>(null);
@@ -98,6 +101,9 @@ export default function Dashboard() {
   // ─── TENANT DASHBOARD ───────────────────────────────────────────────
   if (mode === "tenant") {
     const myComplaints = complaints.filter((c) => c.tenantId === tenantData?.id && c.status !== "Resolved");
+    const todayKey = DAY_KEYS[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1];
+    const todayMeals = settings.weeklyMenu[todayKey];
+    const showFoodCard = !settingsLoading && settings.foodIncluded;
 
     return (
       <div className="space-y-4 sm:space-y-6">
@@ -178,6 +184,53 @@ export default function Dashboard() {
             )}
           </Card>
         </div>
+
+        {showFoodCard && (
+          <Card className="border-[var(--teal)]/20 bg-gradient-to-br from-[var(--teal)]/5 to-[var(--surface)]">
+            <Card.Content className="p-4 sm:p-5">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--teal)] text-white">
+                      <UtensilsCrossed size={16} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">{t("foodMenu.today")}&apos;s meals</p>
+                      <p className="text-xs text-slate-500">{DAY_LABELS[todayKey]}</p>
+                    </div>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    <div className="rounded-lg border border-[var(--line)] bg-[var(--surface)]/90 px-3 py-2">
+                      <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
+                        {t("foodMenu.breakfast")}
+                      </p>
+                      <p className="mt-0.5 text-sm text-slate-800">{todayMeals.breakfast || "—"}</p>
+                    </div>
+                    <div className="rounded-lg border border-[var(--line)] bg-[var(--surface)]/90 px-3 py-2">
+                      <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
+                        {t("foodMenu.lunch")}
+                      </p>
+                      <p className="mt-0.5 text-sm text-slate-800">{todayMeals.lunch || "—"}</p>
+                    </div>
+                    <div className="rounded-lg border border-[var(--line)] bg-[var(--surface)]/90 px-3 py-2">
+                      <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
+                        {t("foodMenu.dinner")}
+                      </p>
+                      <p className="mt-0.5 text-sm text-slate-800">{todayMeals.dinner || "—"}</p>
+                    </div>
+                  </div>
+                </div>
+                <Link
+                  href="/food-menu"
+                  className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border border-[var(--teal)]/30 bg-[var(--surface)] px-4 py-2.5 text-sm font-medium text-[var(--teal-deep)] transition hover:bg-[var(--teal)]/10"
+                >
+                  {t("nav.foodMenu")}
+                  <ArrowRight size={14} />
+                </Link>
+              </div>
+            </Card.Content>
+          </Card>
+        )}
 
         <Card>
           <Card.Header className="px-4 sm:px-5 pt-4 sm:pt-5 pb-0">

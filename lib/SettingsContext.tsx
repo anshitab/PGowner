@@ -4,6 +4,10 @@ import { createContext, useContext, useState, useEffect, useCallback, ReactNode 
 import { supabase } from "./supabase";
 import { usePropertyContext } from "./PropertyContext";
 
+import { DEMO_WEEKLY_MENU, emptyWeeklyMenu, normalizeWeeklyMenu, type WeeklyMenu } from "@/lib/food-menu";
+import { useAuth } from "./AuthContext";
+import { DEMO_PROPERTY_NAME, isDemoUserEmail } from "./demo-accounts";
+
 export interface PGSettings {
   rentDueDay: number;
   lateFeeAmount: number;
@@ -23,6 +27,8 @@ export interface PGSettings {
     monthlyReports: boolean;
   };
   upiId: string;
+  foodIncluded: boolean;
+  weeklyMenu: WeeklyMenu;
 }
 
 const DEFAULT_SETTINGS: PGSettings = {
@@ -44,6 +50,8 @@ const DEFAULT_SETTINGS: PGSettings = {
     monthlyReports: true,
   },
   upiId: "",
+  foodIncluded: false,
+  weeklyMenu: emptyWeeklyMenu(),
 };
 
 interface SettingsContextType {
@@ -61,19 +69,59 @@ const SettingsContext = createContext<SettingsContextType>({
 });
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
-  const { propertyId } = usePropertyContext();
+  const { propertyId, property } = usePropertyContext();
+  const { user } = useAuth();
   const [settings, setSettings] = useState<PGSettings>(DEFAULT_SETTINGS);
   const [loading, setLoading] = useState(true);
   const [settingsId, setSettingsId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!propertyId) {
+    if (user?.role === "tenant") {
+      if (!user.id) {
+        setSettings(DEFAULT_SETTINGS);
+        setLoading(false);
+        return;
+      }
+    } else if (!propertyId) {
       setSettings(DEFAULT_SETTINGS);
       setLoading(false);
       return;
     }
 
     (async () => {
+      if (user?.role === "tenant" && user.id) {
+        const params = new URLSearchParams({ userId: user.id });
+        if (user.email) params.set("email", user.email);
+        const res = await fetch(`/api/tenant-settings?${params}`);
+        const data = await res.json().catch(() => ({}));
+
+        let foodIncluded = !!data.foodIncluded;
+        let weeklyMenu = normalizeWeeklyMenu(data.weeklyMenu);
+
+        if (
+          !foodIncluded &&
+          isDemoUserEmail(user.email) &&
+          (property?.name === DEMO_PROPERTY_NAME || !property)
+        ) {
+          foodIncluded = true;
+          weeklyMenu = DEMO_WEEKLY_MENU;
+        }
+
+        setSettings((prev) => ({
+          ...prev,
+          upiId: data.upiId ?? prev.upiId,
+          foodIncluded,
+          weeklyMenu,
+        }));
+        setLoading(false);
+        return;
+      }
+
+      if (!propertyId) {
+        setLoading(false);
+        return;
+      }
+
       const { data } = await supabase
         .from("settings")
         .select("*")
@@ -82,6 +130,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
       if (data) {
         setSettingsId(data.id);
+        const weeklyMenu = normalizeWeeklyMenu(data.weekly_menu);
+        const foodIncluded =
+          data.food_included === true ||
+          Object.values(weeklyMenu).some((d) => d.breakfast || d.lunch || d.dinner);
         setSettings({
           rentDueDay: data.rent_due_day ?? DEFAULT_SETTINGS.rentDueDay,
           lateFeeAmount: data.late_fee_amount ?? DEFAULT_SETTINGS.lateFeeAmount,
@@ -95,11 +147,13 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
           checkoutDeductions: data.checkout_deductions ?? DEFAULT_SETTINGS.checkoutDeductions,
           notifications: data.notifications ?? DEFAULT_SETTINGS.notifications,
           upiId: data.upi_id ?? DEFAULT_SETTINGS.upiId,
+          foodIncluded,
+          weeklyMenu,
         });
       }
       setLoading(false);
     })();
-  }, [propertyId]);
+  }, [propertyId, user?.id, user?.role, user?.email, property?.name]);
 
   const updateSettings = useCallback(async (partial: Partial<PGSettings>) => {
     const newSettings = { ...settings, ...partial };
@@ -107,7 +161,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
     if (!propertyId) return;
 
-    const row = {
+    const row: Record<string, unknown> = {
       property_id: propertyId,
       rent_due_day: newSettings.rentDueDay,
       late_fee_amount: newSettings.lateFeeAmount,
@@ -121,12 +175,25 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       checkout_deductions: newSettings.checkoutDeductions,
       notifications: newSettings.notifications,
       upi_id: newSettings.upiId,
+      food_included: newSettings.foodIncluded,
+      weekly_menu: newSettings.weeklyMenu,
     };
 
     if (settingsId) {
-      await supabase.from("settings").update(row).eq("id", settingsId);
+      let { error } = await supabase.from("settings").update(row).eq("id", settingsId);
+      if (error?.message?.includes("food_included")) {
+        delete row.food_included;
+        delete row.weekly_menu;
+        await supabase.from("settings").update(row).eq("id", settingsId);
+      }
     } else {
-      const { data } = await supabase.from("settings").insert(row).select().single();
+      let { data, error } = await supabase.from("settings").insert(row).select().single();
+      if (error?.message?.includes("food_included")) {
+        delete row.food_included;
+        delete row.weekly_menu;
+        const retry = await supabase.from("settings").insert(row).select().single();
+        data = retry.data;
+      }
       if (data) setSettingsId(data.id);
     }
   }, [settings, propertyId, settingsId]);

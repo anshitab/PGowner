@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { fetchComplaintsForProperty, mapComplaintRow } from "@/lib/complaints-server";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -16,11 +17,7 @@ export async function GET(request: Request) {
   }
 
   const [complaintsRes, checkoutsRes] = await Promise.all([
-    supabaseAdmin
-      .from("complaints")
-      .select("*, tenants(name, rooms(number))")
-      .eq("property_id", propertyId)
-      .order("created_at", { ascending: false }),
+    fetchComplaintsForProperty(propertyId).catch(() => []),
     supabaseAdmin
       .from("checkout_records")
       .select("*")
@@ -28,17 +25,7 @@ export async function GET(request: Request) {
       .order("created_at", { ascending: false }),
   ]);
 
-  const complaints = (complaintsRes.data || []).map((c) => ({
-    id: c.id,
-    type: "complaint" as const,
-    title: c.title,
-    description: c.description || "",
-    tenant: (c.tenants as { name: string } | null)?.name || "",
-    room: (c.tenants as { name: string; rooms?: { number: string } | null } | null)?.rooms?.number || "",
-    status: c.status,
-    priority: c.priority,
-    created_at: c.created_at,
-  }));
+  const complaints = (complaintsRes as Record<string, unknown>[]).map((c) => mapComplaintRow(c));
 
   const checkouts = (checkoutsRes.data || []).map((r) => ({
     id: r.id,

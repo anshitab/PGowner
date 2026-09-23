@@ -143,6 +143,16 @@ async function ensureDemoProperty(ownerId) {
   return data.id;
 }
 
+const DEMO_WEEKLY_MENU = {
+  monday: { breakfast: "Poha, tea", lunch: "Dal, rice, roti, seasonal sabzi", dinner: "Rajma, rice, salad" },
+  tuesday: { breakfast: "Upma, coffee", lunch: "Chole, bhatura, onion salad", dinner: "Mix veg, roti, curd" },
+  wednesday: { breakfast: "Paratha, curd", lunch: "Kadhi, rice, papad", dinner: "Paneer butter masala, roti" },
+  thursday: { breakfast: "Idli, sambar", lunch: "Sambar rice, poriyal, pickle", dinner: "Egg curry / paneer curry, roti" },
+  friday: { breakfast: "Bread, jam, tea", lunch: "Veg biryani, raita", dinner: "Dal fry, jeera rice, salad" },
+  saturday: { breakfast: "Aloo paratha, pickle", lunch: "Rajma chawal, salad", dinner: "Special thali" },
+  sunday: { breakfast: "Poori, aloo sabzi", lunch: "Chicken / paneer curry, rice, roti", dinner: "Khichdi, papad, pickle" },
+};
+
 async function ensureSettings(propertyId) {
   const { data: existing } = await supabase
     .from("settings")
@@ -150,18 +160,21 @@ async function ensureSettings(propertyId) {
     .eq("property_id", propertyId)
     .maybeSingle();
 
+  const foodPatch = {
+    upi_id: "demo@upi",
+    rent_due_day: 5,
+    food_included: true,
+    weekly_menu: DEMO_WEEKLY_MENU,
+  };
+
   if (existing?.id) {
-    await supabase
-      .from("settings")
-      .update({ upi_id: "demo@upi", rent_due_day: 5 })
-      .eq("id", existing.id);
+    await supabase.from("settings").update(foodPatch).eq("id", existing.id);
     return;
   }
 
   const { error } = await supabase.from("settings").insert({
     property_id: propertyId,
-    upi_id: "demo@upi",
-    rent_due_day: 5,
+    ...foodPatch,
   });
   if (error) throw error;
 }
@@ -274,6 +287,41 @@ async function ensureDemoTenant(propertyId, tenantUserId, roomId) {
   return tenantId;
 }
 
+async function ensureServiceVendors(propertyId) {
+  const { count } = await supabase
+    .from("service_vendors")
+    .select("id", { count: "exact", head: true })
+    .eq("property_id", propertyId);
+
+  if (count) return;
+
+  const { error } = await supabase.from("service_vendors").insert([
+    {
+      property_id: propertyId,
+      trade: "plumbing",
+      name: "Ramesh (Demo Plumber)",
+      phone: "9876500001",
+      email: "",
+    },
+    {
+      property_id: propertyId,
+      trade: "electrical",
+      name: "Sunil (Demo Electrician)",
+      phone: "9876500002",
+      email: "",
+    },
+    {
+      property_id: propertyId,
+      trade: "general",
+      name: "General Maintenance",
+      phone: "9876500003",
+      email: "",
+    },
+  ]);
+  if (error) throw error;
+  console.log("Created demo service contacts");
+}
+
 async function ensureSampleData(propertyId, tenantId) {
   const { count: paymentCount } = await supabase
     .from("payments")
@@ -303,10 +351,12 @@ async function ensureSampleData(propertyId, tenantId) {
     await supabase.from("complaints").insert({
       property_id: propertyId,
       tenant_id: tenantId,
-      title: "AC not cooling well",
-      description: "Room 101 AC needs servicing.",
+      title: "Bathroom tap leaking",
+      description: "Water dripping constantly from the tap in room 101 bathroom.",
       priority: "Medium",
       status: "Open",
+      category: "plumbing",
+      approval_status: "pending",
     });
   }
 
@@ -327,6 +377,16 @@ async function ensureSampleData(propertyId, tenantId) {
 
 async function main() {
   console.log("Seeding ProManage demo accounts…\n");
+
+  try {
+    const { spawnSync } = await import("node:child_process");
+    spawnSync(process.execPath, ["scripts/apply-migrations.mjs"], {
+      stdio: "inherit",
+      cwd: process.cwd(),
+    });
+  } catch {
+    /* optional */
+  }
 
   const ownerId = await upsertAuthUser({
     email: DEMO_OWNER.email,
@@ -349,6 +409,7 @@ async function main() {
   if (!room101) throw new Error("Demo room 101 missing");
 
   const tenantId = await ensureDemoTenant(propertyId, tenantUserId, room101.id);
+  await ensureServiceVendors(propertyId);
   await ensureSampleData(propertyId, tenantId);
 
   console.log("\nDemo accounts ready:\n");

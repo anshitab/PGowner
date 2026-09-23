@@ -1,7 +1,7 @@
 "use client";
 
 import { Plus, Search, AlertCircle, Clock, CheckCircle2 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, Chip, Button, Modal, useOverlayState } from "@heroui/react";
 import EmptyState from "@/components/EmptyState";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
@@ -9,6 +9,8 @@ import { useUserMode } from "@/lib/UserModeContext";
 import { useAuth } from "@/lib/AuthContext";
 import { useComplaints, Complaint } from "@/lib/ComplaintContext";
 import ComplaintDetailModal from "@/components/complaints/ComplaintDetailModal";
+import { SERVICE_TRADES, TRADE_LABELS, type ServiceTrade } from "@/lib/service-trades";
+import { classifyComplaintCategory } from "@/lib/complaint-routing";
 import { useRouter } from "next/navigation";
 
 const statusIcons: Record<string, typeof AlertCircle> = {
@@ -50,6 +52,7 @@ export default function ComplaintsPage() {
   const [newTitle, setNewTitle] = useState("");
   const [newDescription, setNewDescription] = useState("");
   const [newPriority, setNewPriority] = useState<"High" | "Medium" | "Low">("Medium");
+  const [newCategory, setNewCategory] = useState<ServiceTrade | "">("");
   const [submittingComplaint, setSubmittingComplaint] = useState(false);
   const [tenantData, setTenantData] = useState<{ id: string; name: string; room: string } | null>(null);
 
@@ -81,6 +84,7 @@ export default function ComplaintsPage() {
           title: newTitle.trim(),
           description: newDescription.trim(),
           priority: newPriority,
+          category: newCategory || undefined,
         }),
       });
       if (res.ok) {
@@ -89,6 +93,7 @@ export default function ComplaintsPage() {
         setNewTitle("");
         setNewDescription("");
         setNewPriority("Medium");
+        setNewCategory("");
         modalState.close();
       }
     } finally {
@@ -106,6 +111,11 @@ export default function ComplaintsPage() {
 
   const openCount = baseData.filter((c) => c.status === "Open").length;
   const inProgressCount = baseData.filter((c) => c.status === "In Progress").length;
+
+  const detectedNewCategory = useMemo(
+    () => classifyComplaintCategory(newTitle, newDescription),
+    [newTitle, newDescription]
+  );
 
   return (
     <div className="space-y-4 sm:space-y-8">
@@ -175,6 +185,15 @@ export default function ComplaintsPage() {
                         <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5 sm:mt-1 line-clamp-2">{complaint.description}</p>
                         <div className="flex items-center gap-2 sm:gap-3 mt-1.5 sm:mt-2 flex-wrap">
                           <span className="text-[11px] sm:text-xs text-slate-600">{complaint.tenant} &middot; {t("common.room")} {complaint.room}</span>
+                          <Chip size="sm" variant="soft" className="text-indigo-700 bg-indigo-50">
+                            {TRADE_LABELS[complaint.category || "general"]}
+                          </Chip>
+                          {complaint.approvalStatus === "pending" && (
+                            <span className="text-[10px] text-amber-600">Awaiting owner approval</span>
+                          )}
+                          {complaint.vendorName && complaint.approvalStatus === "approved" && (
+                            <span className="text-[10px] text-emerald-600">→ {complaint.vendorName}</span>
+                          )}
                           <span className="text-[10px] sm:text-[11px] text-slate-400">{complaint.time}</span>
                         </div>
                       </div>
@@ -243,6 +262,30 @@ export default function ComplaintsPage() {
                         rows={3}
                         className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-none"
                       />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Issue type (optional)</label>
+                      <select
+                        value={newCategory}
+                        onChange={(e) => setNewCategory(e.target.value as ServiceTrade | "")}
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                      >
+                        <option value="">Auto-detect: {TRADE_LABELS[detectedNewCategory]}</option>
+                        {SERVICE_TRADES.map((trade) => (
+                          <option key={trade} value={trade}>
+                            {TRADE_LABELS[trade]}
+                          </option>
+                        ))}
+                      </select>
+                      {newTitle.trim() && (
+                        <p className="mt-1.5 text-xs text-indigo-700">
+                          Will be routed as{" "}
+                          <span className="font-semibold">
+                            {TRADE_LABELS[newCategory || detectedNewCategory]}
+                          </span>
+                          {newCategory ? "" : " (auto-detected)"}
+                        </p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1">{t("complaints.priority")}</label>

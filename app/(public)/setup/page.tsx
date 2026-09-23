@@ -38,6 +38,7 @@ function SetupContent() {
   const [rentDouble, setRentDouble] = useState("₹8,000");
   const [rentTriple, setRentTriple] = useState("₹6,000");
   const [amenities, setAmenities] = useState<string[]>(["Fan", "WiFi"]);
+  const [foodIncluded, setFoodIncluded] = useState(false);
   const [roomNumbers, setRoomNumbers] = useState<string[][]>([]);
   // Room sharing type map: key = "floorIdx-roomIdx", value = "Single" | "Double" | "Triple"
   const [roomTypes, setRoomTypes] = useState<Record<string, "Single" | "Double" | "Triple">>({});
@@ -167,6 +168,7 @@ function SetupContent() {
       beds,
       rules: ["Rent due by 5th of every month", "Gate closes at 11 PM", "No smoking inside premises", "Visitors allowed 9 AM - 8 PM"],
       setupComplete: false,
+      foodIncluded,
     };
 
     setGeneratedConfig(config);
@@ -450,6 +452,20 @@ function SetupContent() {
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1.5">Select Amenities</label>
               <p className="text-[11px] text-slate-400 mb-3">Choose what your PG offers</p>
+              <label className="mb-4 flex cursor-pointer items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
+                <input
+                  type="checkbox"
+                  checked={foodIncluded}
+                  onChange={(e) => setFoodIncluded(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500"
+                />
+                <span>
+                  <span className="block text-sm font-medium text-slate-900">PG with food (meals included)</span>
+                  <span className="mt-1 block text-xs text-slate-600">
+                    Enables the weekly food menu in the sidebar for you and your tenants.
+                  </span>
+                </span>
+              </label>
               <div className="flex flex-wrap gap-2">
                 {AMENITY_OPTIONS.map((a) => (
                   <button

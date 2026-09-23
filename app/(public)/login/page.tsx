@@ -1,15 +1,16 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Building2, Eye, EyeOff, User, MailCheck, ArrowLeft } from "lucide-react";
+import { Building2, Eye, EyeOff, User, MailCheck, ArrowLeft, UserRound } from "lucide-react";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useAuth, AuthRole } from "@/lib/AuthContext";
 import {
   DEMO_OWNER,
   DEMO_TENANT,
   isDemoAccountsEnabled,
+  getDemoCredentials,
 } from "@/lib/demo-accounts";
 import { motion } from "motion/react";
 
@@ -51,6 +52,30 @@ function LoginContent() {
   const [otp, setOtp] = useState("");
   const [challengeToken, setChallengeToken] = useState("");
   const [resendCooldown, setResendCooldown] = useState(0);
+
+  const signInDemo = useCallback(
+    async (role: "owner" | "tenant") => {
+      const creds = getDemoCredentials(role);
+      setActiveTab(role);
+      setIsSignUp(false);
+      setForgotMode(false);
+      setError("");
+      setSubmitting(true);
+      try {
+        const result = await signIn(creds.email, creds.password);
+        if (result.error) {
+          setError(
+            "Demo sign-in failed. Run npm run demo:setup once (or paste supabase/apply-all.sql in Supabase), then try again."
+          );
+          return;
+        }
+        router.replace("/dashboard");
+      } finally {
+        setSubmitting(false);
+      }
+    },
+    [signIn, router]
+  );
 
   useEffect(() => {
     if (resendCooldown <= 0) return;
@@ -192,7 +217,14 @@ function LoginContent() {
   }
 
   const isOwner = activeTab === "owner";
-  const showDemoLogin = isDemoAccountsEnabled() && !forgotMode && !isSignUp && !otpStep;
+  const demoChooseMode =
+    isDemoAccountsEnabled() &&
+    searchParams.get("demo") === "choose" &&
+    !forgotMode &&
+    !isSignUp &&
+    !otpStep;
+  const showDemoLogin =
+    isDemoAccountsEnabled() && !demoChooseMode && !forgotMode && !isSignUp && !otpStep;
 
   const fillDemoCredentials = (role: AuthRole) => {
     setActiveTab(role);
@@ -265,6 +297,69 @@ function LoginContent() {
             ProManage
           </Link>
 
+          {demoChooseMode ? (
+            <div className="space-y-6">
+              <div>
+                <h1 className="font-display text-3xl font-semibold tracking-tight text-[var(--ink)]">
+                  Try the live demo
+                </h1>
+                <p className="mt-2 text-sm text-[var(--muted)]">
+                  Choose whether you want to explore as a PG owner or as a tenant. Sample data is already loaded.
+                </p>
+              </div>
+
+              {error && (
+                <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-[var(--danger)]">
+                  {error}
+                </p>
+              )}
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <button
+                  type="button"
+                  disabled={submitting}
+                  onClick={() => signInDemo("owner")}
+                  className="flex flex-col items-start rounded-xl border-2 border-[var(--teal)]/30 bg-[var(--teal)]/5 p-5 text-left transition hover:border-[var(--teal)] hover:bg-[var(--teal)]/10 disabled:opacity-50"
+                >
+                  <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--teal)] text-white">
+                    <Building2 size={18} />
+                  </span>
+                  <span className="mt-4 font-display text-lg font-semibold text-[var(--ink)]">PG owner</span>
+                  <span className="mt-1 text-xs leading-relaxed text-[var(--muted)]">
+                    Dashboard, tenants, rent, notifications, and complaint approval.
+                  </span>
+                  <span className="mt-4 text-xs font-semibold text-[var(--teal-deep)]">
+                    {submitting ? "Signing in…" : "Enter owner demo →"}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={submitting}
+                  onClick={() => signInDemo("tenant")}
+                  className="flex flex-col items-start rounded-xl border-2 border-[var(--line)] bg-[var(--surface)] p-5 text-left transition hover:border-[var(--teal)]/40 hover:shadow-sm disabled:opacity-50"
+                >
+                  <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--ink)] text-white">
+                    <UserRound size={18} />
+                  </span>
+                  <span className="mt-4 font-display text-lg font-semibold text-[var(--ink)]">Tenant</span>
+                  <span className="mt-1 text-xs leading-relaxed text-[var(--muted)]">
+                    My room, complaints, food menu, and messages from your PG.
+                  </span>
+                  <span className="mt-4 text-xs font-semibold text-[var(--teal-deep)]">
+                    {submitting ? "Signing in…" : "Enter tenant demo →"}
+                  </span>
+                </button>
+              </div>
+
+              <p className="text-center text-sm text-[var(--muted)]">
+                <Link href="/login" className="font-medium text-[var(--teal)] hover:text-[var(--teal-deep)]">
+                  Sign in with your own account
+                </Link>
+              </p>
+            </div>
+          ) : (
+            <>
           {forgotMode ? (
             <>
               <h1 className="font-display text-3xl font-semibold tracking-tight text-[var(--ink)]">
@@ -508,30 +603,16 @@ function LoginContent() {
 
             {showDemoLogin && (
               <div className="rounded-md border border-dashed border-[var(--teal)]/40 bg-[var(--teal)]/5 px-3 py-3">
-                <p className="text-xs font-medium text-[var(--ink)]">Try the demo</p>
+                <p className="text-xs font-medium text-[var(--ink)]">Try the live demo</p>
                 <p className="mt-1 text-xs text-[var(--muted)]">
-                  Pre-filled accounts with sample PG data. Run{" "}
-                  <code className="rounded bg-[var(--surface)] px-1 py-0.5 text-[11px]">
-                    npm run seed:demo
-                  </code>{" "}
-                  once if login fails.
+                  Explore with sample data—pick owner or tenant.
                 </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => fillDemoCredentials("owner")}
-                    className="rounded-md border border-[var(--line)] bg-[var(--surface)] px-3 py-1.5 text-xs font-medium text-[var(--ink)] transition hover:border-[var(--teal)]"
-                  >
-                    Demo owner
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => fillDemoCredentials("tenant")}
-                    className="rounded-md border border-[var(--line)] bg-[var(--surface)] px-3 py-1.5 text-xs font-medium text-[var(--ink)] transition hover:border-[var(--teal)]"
-                  >
-                    Demo tenant
-                  </button>
-                </div>
+                <Link
+                  href="/login?demo=choose"
+                  className="mt-3 inline-flex w-full items-center justify-center rounded-md bg-[var(--teal)] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[var(--teal-deep)]"
+                >
+                  Choose demo role
+                </Link>
               </div>
             )}
 
@@ -591,6 +672,8 @@ function LoginContent() {
             <p className="mt-6 text-center text-xs leading-relaxed text-[var(--muted)]">
               No login yet? Ask your PG owner to add you—they’ll email your credentials.
             </p>
+          )}
+            </>
           )}
         </div>
       </motion.div>

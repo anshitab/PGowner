@@ -2,6 +2,7 @@
 
 import { createContext, useContext, ReactNode } from "react";
 import { supabase } from "./supabase";
+import { DEMO_WEEKLY_MENU, emptyWeeklyMenu } from "./food-menu";
 import { usePropertyContext } from "./PropertyContext";
 import { useAuth } from "./AuthContext";
 
@@ -29,6 +30,7 @@ export interface PGConfig {
   beds: PGBed[];
   rules: string[];
   setupComplete: boolean;
+  foodIncluded?: boolean;
 }
 
 interface PGConfigContextType {
@@ -115,7 +117,12 @@ export function PGConfigProvider({ children }: { children: ReactNode }) {
     }
 
     // Create default settings
-    await supabase.from("settings").insert({ property_id: prop.id });
+    const foodIncluded = !!newConfig.foodIncluded;
+    await supabase.from("settings").insert({
+      property_id: prop.id,
+      food_included: foodIncluded,
+      weekly_menu: foodIncluded ? DEMO_WEEKLY_MENU : emptyWeeklyMenu(),
+    });
 
     await refetchProperty();
   };

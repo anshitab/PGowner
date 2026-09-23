@@ -92,6 +92,13 @@ export default function LandingPage() {
                 <ArrowRight size={16} />
               </button>
               <button
+                onClick={() => router.push("/login?demo=choose")}
+                className="inline-flex items-center gap-2 rounded-md border border-white/35 bg-white/10 px-5 py-3 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/18"
+              >
+                Try live demo
+                <ArrowRight size={16} />
+              </button>
+              <button
                 onClick={() => router.push("/login?role=tenant")}
                 className="inline-flex items-center gap-2 rounded-md border border-white/30 bg-white/8 px-5 py-3 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/16"
               >

@@ -9,6 +9,8 @@ import { usePropertyContext } from "@/lib/PropertyContext";
 import { useUserMode } from "@/lib/UserModeContext";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import DashboardLoading from "@/components/DashboardLoading";
+import DemoGuideBanner from "@/components/DemoGuideBanner";
 import { supabase } from "@/lib/supabase";
 
 export default function DashboardLayout({
@@ -66,7 +68,9 @@ export default function DashboardLayout({
     }
   }, [isAuthenticated, authLoading, propLoading, property, mode, router, user]);
 
-  if (authLoading || propLoading) return null;
+  if (authLoading || propLoading) {
+    return <DashboardLoading />;
+  }
   if (!isAuthenticated) return null;
   if (mode === "owner" && !property) return null;
 
@@ -76,6 +80,7 @@ export default function DashboardLayout({
       <div className="md:ml-64 min-h-screen flex flex-col">
         <TopBar onMenuClick={() => setSidebarOpen(true)} />
         <main className="flex-1 p-4 sm:p-6">
+          <DemoGuideBanner />
           <PageTransition>{children}</PageTransition>
         </main>
       </div>

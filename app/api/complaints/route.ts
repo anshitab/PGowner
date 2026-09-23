@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import {
+  classifyComplaintCategory,
+  isServiceTrade,
+} from "@/lib/complaint-routing";
+import type { ServiceTrade } from "@/lib/service-trades";
+import { fetchComplaintsForProperty } from "@/lib/complaints-server";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -12,21 +18,18 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "property_id required" }, { status: 400 });
   }
 
-  const supabase = createClient(supabaseUrl, supabaseServiceKey, { auth: { persistSession: false } });
-
-  const { data, error } = await supabase
-    .from("complaints")
-    .select("*, tenants(name, rooms(number))")
-    .eq("property_id", propertyId)
-    .order("created_at", { ascending: false });
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data || []);
+  try {
+    const data = await fetchComplaintsForProperty(propertyId);
+    return NextResponse.json(data);
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : "Failed to load complaints";
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
 }
 
 export async function POST(request: Request) {
   const body = await request.json();
-  const { userId, title, description, priority } = body;
+  const { userId, title, description, priority, category: rawCategory } = body;
 
   if (!userId || !title) {
     return NextResponse.json({ error: "userId and title required" }, { status: 400 });
@@ -41,7 +44,9 @@ export async function POST(request: Request) {
     .maybeSingle();
 
   if (!tenant) {
-    const { data: { user } } = await supabase.auth.admin.getUserById(userId);
+    const {
+      data: { user },
+    } = await supabase.auth.admin.getUserById(userId);
     if (user?.email) {
       const { data: emailMatch } = await supabase
         .from("tenants")
@@ -60,26 +65,43 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
   }
 
-  const { data, error } = await supabase
-    .from("complaints")
-    .insert({
-      property_id: tenant.property_id,
-      tenant_id: tenant.id,
-      title,
-      description: description || "",
-      priority: priority || "Medium",
-      status: "Open",
-    })
-    .select()
-    .single();
+  const category: ServiceTrade =
+    rawCategory && isServiceTrade(rawCategory)
+      ? rawCategory
+      : classifyComplaintCategory(title, description || "");
+
+  const insertPayload: Record<string, unknown> = {
+    property_id: tenant.property_id,
+    tenant_id: tenant.id,
+    title,
+    description: description || "",
+    priority: priority || "Medium",
+    status: "Open",
+    category,
+  };
+
+  // Newer columns — omit if migration not applied yet
+  insertPayload.approval_status = "pending";
+
+  let { data, error } = await supabase.from("complaints").insert(insertPayload).select().single();
+
+  if (error?.message?.includes("approval_status")) {
+    delete insertPayload.approval_status;
+    ({ data, error } = await supabase.from("complaints").insert(insertPayload).select().single());
+  }
+  if (error?.message?.includes("category")) {
+    delete insertPayload.category;
+    ({ data, error } = await supabase.from("complaints").insert(insertPayload).select().single());
+  }
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
   return NextResponse.json({
-    id: data.id,
+    id: data!.id,
     tenant: tenant.name,
     room: (tenant.rooms as unknown as { number: string } | null)?.number || "",
+    category,
   });
 }

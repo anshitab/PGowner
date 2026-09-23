@@ -12,6 +12,16 @@ export const DEMO_TENANT = {
 
 export const DEMO_PROPERTY_NAME = "Sunrise Demo PG";
 
+export function isDemoUserEmail(email: string | undefined | null): boolean {
+  if (!email) return false;
+  const normalized = email.toLowerCase();
+  return normalized === DEMO_OWNER.email || normalized === DEMO_TENANT.email;
+}
+
+export function getDemoCredentials(role: "owner" | "tenant") {
+  return role === "owner" ? DEMO_OWNER : DEMO_TENANT;
+}
+
 /** Show demo login shortcuts (dev by default; set NEXT_PUBLIC_DEMO_ACCOUNTS=false to hide). */
 export function isDemoAccountsEnabled(): boolean {
   const flag = process.env.NEXT_PUBLIC_DEMO_ACCOUNTS;

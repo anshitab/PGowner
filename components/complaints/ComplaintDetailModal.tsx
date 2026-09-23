@@ -1,9 +1,12 @@
 "use client";
 
 import { Complaint, useComplaints } from "@/lib/ComplaintContext";
-import { X, Send, Clock } from "lucide-react";
-import { Chip } from "@heroui/react";
+import { X, Send, Clock, Phone, UserCheck } from "lucide-react";
+import { Chip, Button } from "@heroui/react";
 import { useState } from "react";
+import { useUserMode } from "@/lib/UserModeContext";
+import { TRADE_LABELS } from "@/lib/service-trades";
+import { toast } from "sonner";
 
 interface Props {
   complaint: Complaint;
@@ -11,8 +14,10 @@ interface Props {
 }
 
 export default function ComplaintDetailModal({ complaint, onClose }: Props) {
-  const { addComment, updateStatus } = useComplaints();
+  const { addComment, updateStatus, approveComplaint } = useComplaints();
+  const { mode } = useUserMode();
   const [message, setMessage] = useState("");
+  const [approving, setApproving] = useState(false);
 
   const handleSend = () => {
     if (!message.trim()) return;
@@ -21,6 +26,20 @@ export default function ComplaintDetailModal({ complaint, onClose }: Props) {
   };
 
   const statusOptions: Complaint["status"][] = ["Open", "In Progress", "Resolved", "Closed"];
+  const isOwner = mode === "owner";
+  const pendingApproval = complaint.approvalStatus === "pending" && complaint.status !== "Resolved";
+
+  const handleApprove = async () => {
+    setApproving(true);
+    const result = await approveComplaint(complaint.id);
+    setApproving(false);
+    if (result.error) {
+      toast.error(result.error);
+      return;
+    }
+    toast.success("Technician assigned");
+    onClose();
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -43,21 +62,50 @@ export default function ComplaintDetailModal({ complaint, onClose }: Props) {
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
           <p className="text-sm text-slate-700">{complaint.description}</p>
 
-          <div className="flex items-center gap-3">
+          <p className="text-xs text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-2">
+            Issue type: <strong>{TRADE_LABELS[complaint.category || "general"]}</strong>
+            {pendingApproval && isOwner ? " · Approve to assign the matching contact" : ""}
+          </p>
+
+          {(complaint.vendorName || complaint.vendorPhone) && (
+            <div className="flex items-start gap-2 text-sm text-emerald-800 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2">
+              <UserCheck size={16} className="shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium">{complaint.vendorName || complaint.assignedTo}</p>
+                {complaint.vendorTrade && (
+                  <p className="text-xs text-emerald-700">{TRADE_LABELS[complaint.vendorTrade as keyof typeof TRADE_LABELS] || complaint.vendorTrade}</p>
+                )}
+                {complaint.vendorPhone && (
+                  <p className="text-xs flex items-center gap-1 mt-1">
+                    <Phone size={12} />
+                    {complaint.vendorPhone}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center gap-3">
             <Chip size="sm" variant="soft" color={complaint.priority === "High" ? "danger" : complaint.priority === "Medium" ? "warning" : "default"}>
               {complaint.priority}
             </Chip>
-            <select
-              value={complaint.status}
-              onChange={(e) => updateStatus(complaint.id, e.target.value as Complaint["status"])}
-              className="text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-            >
-              {statusOptions.map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
-            {complaint.assignedTo && (
-              <span className="text-[11px] text-slate-500">Assigned: {complaint.assignedTo}</span>
+            {isOwner ? (
+              <select
+                value={complaint.status}
+                onChange={(e) => updateStatus(complaint.id, e.target.value as Complaint["status"])}
+                className="text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              >
+                {statusOptions.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            ) : (
+              <Chip size="sm" variant="soft">{complaint.status}</Chip>
+            )}
+            {isOwner && pendingApproval && (
+              <Button variant="primary" size="sm" onPress={handleApprove} isDisabled={approving}>
+                {approving ? "Assigning…" : "Approve & assign"}
+              </Button>
             )}
           </div>
 

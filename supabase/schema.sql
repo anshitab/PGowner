@@ -92,6 +92,18 @@ CREATE TABLE rent_collection (
   created_at timestamptz DEFAULT now()
 );
 
+-- On-site service contacts (plumber, electrician, etc.) per property
+CREATE TABLE service_vendors (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  property_id uuid NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+  trade text NOT NULL,
+  name text NOT NULL,
+  phone text NOT NULL DEFAULT '',
+  email text DEFAULT '',
+  is_active boolean NOT NULL DEFAULT true,
+  created_at timestamptz DEFAULT now()
+);
+
 -- Complaints table
 CREATE TABLE complaints (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -102,6 +114,10 @@ CREATE TABLE complaints (
   priority text NOT NULL DEFAULT 'Medium',
   status text NOT NULL DEFAULT 'Open',
   assigned_to text,
+  category text,
+  approval_status text NOT NULL DEFAULT 'pending',
+  vendor_id uuid REFERENCES service_vendors(id) ON DELETE SET NULL,
+  approved_at timestamptz,
   comments jsonb DEFAULT '[]'::jsonb,
   created_at timestamptz DEFAULT now()
 );
@@ -172,6 +188,8 @@ CREATE TABLE settings (
   checkout_deductions jsonb DEFAULT '{"cleaningFee": 2000, "noticePenaltyPerDay": 500}',
   notifications jsonb DEFAULT '{"paymentReceived": true, "rentOverdue": true, "newComplaint": true, "visitorCheckIn": false, "monthlyReports": true}',
   upi_id text DEFAULT '',
+  food_included boolean NOT NULL DEFAULT false,
+  weekly_menu jsonb NOT NULL DEFAULT '{}'::jsonb,
   created_at timestamptz DEFAULT now()
 );
 
@@ -257,6 +275,7 @@ ALTER TABLE checkout_records ENABLE ROW LEVEL SECURITY;
 ALTER TABLE checkout_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE bed_transfers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE service_vendors ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies: Public can read verified properties (for visitor booking)
 CREATE POLICY "public_read_verified" ON properties FOR SELECT TO anon USING (verification_status = 'verified');
@@ -330,6 +349,10 @@ CREATE POLICY "owner_transactions" ON transactions FOR ALL USING (
   property_id IN (SELECT id FROM properties WHERE owner_id = auth.uid())
 );
 
+CREATE POLICY "owner_service_vendors" ON service_vendors FOR ALL USING (
+  property_id IN (SELECT id FROM properties WHERE owner_id = auth.uid())
+);
+
 
 -- RLS Policies: Authenticated users can browse verified properties (for tenant onboarding)
 CREATE POLICY "authenticated_browse_verified" ON properties FOR SELECT TO authenticated
@@ -382,3 +405,5 @@ CREATE INDEX idx_visitors_property ON visitors(property_id);
 CREATE INDEX idx_expenses_property ON expenses(property_id);
 CREATE INDEX idx_activity_log_property ON activity_log(property_id);
 CREATE INDEX idx_activity_log_created ON activity_log(created_at DESC);
+CREATE INDEX idx_service_vendors_property ON service_vendors(property_id);
+CREATE INDEX idx_complaints_approval ON complaints(property_id, approval_status);

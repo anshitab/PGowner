@@ -19,9 +19,11 @@ import {
   FileText,
   HelpCircle,
   X,
+  UtensilsCrossed,
 } from "lucide-react";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useUserMode } from "@/lib/UserModeContext";
+import { useSettings } from "@/lib/SettingsContext";
 
 interface NavItem {
   key: string;
@@ -29,6 +31,7 @@ interface NavItem {
   href: string;
   ownerOnly?: boolean;
   tenantOnly?: boolean;
+  requiresFood?: boolean;
 }
 
 const allNavItems: NavItem[] = [
@@ -39,6 +42,7 @@ const allNavItems: NavItem[] = [
   { key: "nav.rent", icon: "IndianRupee", href: "/rent", ownerOnly: true },
   { key: "nav.payments", icon: "CreditCard", href: "/payments", ownerOnly: true },
   { key: "nav.notifications", icon: "Bell", href: "/notifications", ownerOnly: true },
+  { key: "nav.foodMenu", icon: "UtensilsCrossed", href: "/food-menu", requiresFood: true },
   { key: "nav.complaints", icon: "MessageSquareWarning", href: "/complaints", tenantOnly: true },
   { key: "nav.myRoom", icon: "Home", href: "/my-room", tenantOnly: true },
 ];
@@ -58,6 +62,7 @@ const icons: Record<string, React.ComponentType<{ size?: number }>> = {
   Home,
   FileText,
   HelpCircle,
+  UtensilsCrossed,
 };
 
 interface SidebarProps {
@@ -69,10 +74,16 @@ export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const { t } = useLanguage();
   const { mode } = useUserMode();
+  const { settings, loading: settingsLoading } = useSettings();
 
-  const navItems = mode === "owner"
-    ? allNavItems.filter((item) => !item.tenantOnly)
-    : allNavItems.filter((item) => !item.ownerOnly);
+  const roleFiltered =
+    mode === "owner"
+      ? allNavItems.filter((item) => !item.tenantOnly)
+      : allNavItems.filter((item) => !item.ownerOnly);
+
+  const navItems = settingsLoading
+    ? roleFiltered
+    : roleFiltered.filter((item) => !item.requiresFood || settings.foodIncluded);
 
   const isTenant = mode === "tenant";
 
